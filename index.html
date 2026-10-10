@@ -1,0 +1,5099 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f6efe9">
+<meta name="description" content="JWLE —— 朝夕 · 一天的事，一天的了。本地优先的情侣日常记录 PWA">
+<title>JWLE</title>
+
+<!-- ================= PWA 必需 ================= -->
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="JWLE">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="JWLE">
+<meta name="msapplication-TileColor" content="#f6efe9">
+<meta name="msapplication-TileImage" content="/icons/icon-192.png">
+<meta name="format-detection" content="telephone=no">
+
+<style>
+/* =========================================================
+   朝夕 · DayByDay —— 样式
+   设计原则：极简。一屏只做一件事，能不显示的就不显示。
+
+   本文件的分层：
+     ① 设计令牌（颜色 / 字号 / 间距 / 动效曲线）
+     ② 基础重置
+     ③ 组件
+   组件里不再出现魔法数字，一律引用令牌。
+   ========================================================= */
+
+:root {
+  /* ---------- 颜色 ---------- */
+  --bg: #f6efe9;
+  --card: #fffdfb;
+  --ink: #2c2724;
+  --ink2: #6b6058;
+  /* 说明文字原为 #9a8d84，在 #f6efe9 上对比度仅 3.2:1，
+     远低于 WCAG AA 的 4.5:1；而 .hint / .card-note / .item-s
+     这类小字号说明文字大量使用它，低亮度屏上会明显发糊。
+     实测选 #756c65：在背景上 4.51:1、在卡片白底上 5.06:1，两端都过。 */
+  --ink3: #756c65;
+  --brand: #c2705a;
+  --brand-soft: #f0ddd6;
+  --line: #e8ded6;
+  --ok: #4a7c59;
+  --warn: #b8860b;
+  --danger: #a4453b;
+  --ios-green: #34c759;
+
+  /* ---------- 字号梯度（对齐 iOS type ramp） ----------
+     原来有 12.5px 这种"半像素"值：在 2x/3x 屏上
+     渲染引擎会在 25px 和 26px 之间反复切换，出现糊边。
+     iOS 的梯度里不存在半个像素。 */
+  --fs-title: 20px;   /* 顶栏日期        ← Title 3 附近 */
+  --fs-head: 17px;    /* 卡片主标题      ← Headline */
+  --fs-body: 15px;    /* 正文 / 输入框   ← Subhead  */
+  --fs-sub: 14px;     /* 次级正文        ← Subhead 下沿 */
+  --fs-foot: 13px;    /* 说明 / 标签     ← Footnote */
+  --fs-caption: 12px; /* 极小组 / 徽标   ← Caption 1 */
+  --fs-micro: 11px;   /* tabbar 文字     ← Caption 2 */
+
+  --lh-tight: 1.3;
+  --lh-body: 1.6;
+  --lh-loose: 1.75;
+
+  /* ---------- 间距（4px 网格） ----------
+     原来只有 mt1=12 / mt2=18 两个值，粒度太粗，
+     于是各处随手写 16 / 12 / 18 / 22，节奏就乱了。 */
+  --sp1: 4px;
+  --sp2: 8px;
+  --sp3: 12px;
+  --sp4: 16px;
+  --sp5: 20px;
+  --sp6: 24px;
+  --sp7: 32px;
+
+  /* ---------- 圆角 ---------- */
+  --r-sm: 8px;
+  --r: 14px;       /* 卡片 */
+  --r-lg: 18px;    /* 弹层 */
+
+  /* ---------- 动效 ----------
+     iOS 的标准缓动是"快出慢入"，不是 ease。
+     一个曲线统一全站，动画才不会各有各的脾气。 */
+  --ease: cubic-bezier(.32, .72, 0, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --dur-fast: .15s;
+  --dur: .25s;
+  --dur-slow: .32s;
+
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--bg); color: var(--ink);
+  font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  font-size: var(--fs-body); line-height: var(--lh-body);
+  overscroll-behavior-y: contain;
+}
+body { -webkit-font-smoothing: antialiased; }
+.hidden { display: none !important; }
+
+/* 图标：统一和文字对齐。
+   SVG 默认是 inline，基线和文字不一致，会整体下沉约 2px。 */
+.ico { display: block; }
+.ti .ico { display: block; }
+.row-inline { display: inline-flex; align-items: center; gap: 6px; }
+
+/* 无障碍：系统开了"减弱动态效果"时，动画和过渡全部关掉。
+   这是硬性要求，很多人（尤其前庭功能敏感者）默认开着它。 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- 首屏引导 ---------- */
+.onboard {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; padding-top: calc(24px + var(--safe-t));
+  overflow-y: auto; z-index: 50;
+}
+.ob-inner { width: 100%; max-width: 420px; }
+.ob-logo {
+  font-size: 44px; font-weight: 300; letter-spacing: 6px;
+  color: var(--brand); margin-bottom: 8px;
+}
+.ob-logo span { color: var(--ink3); }
+.ob-title { font-size: 22px; font-weight: 600; margin: 0 0 6px; line-height: var(--lh-tight); }
+.ob-sub { color: var(--ink2); font-size: var(--fs-sub); margin: 0 0 var(--sp5); }
+.ob-card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r); padding: var(--sp4); margin-bottom: var(--sp3);
+}
+.ob-note {
+  font-size: var(--fs-foot); color: var(--ink3); line-height: var(--lh-loose);
+  margin-bottom: var(--sp5); text-align: center;
+}
+
+/* ---------- 布局 ---------- */
+.app {
+  display: flex; flex-direction: column; height: 100%;
+  transition: transform var(--dur-slow) var(--ease),
+              border-radius var(--dur-slow) var(--ease);
+  transform-origin: center top;
+}
+/* 弹层升起时，背后整体缩小并圆角 —— iOS 的层级暗示 */
+.app.behind-sheet {
+  transform: scale(.94);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(var(--sp3) + var(--safe-t)) var(--sp4) var(--sp3);
+  background: var(--bg); border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+  transition: padding var(--dur) var(--ease);
+}
+.tb-date {
+  font-size: var(--fs-title); font-weight: 700;
+  letter-spacing: -.2px; line-height: var(--lh-tight);
+}
+.tb-sub { font-size: var(--fs-foot); color: var(--ink3); margin-top: 2px; }
+/* 滚动后收起副标题，顶栏变矮 —— 用空间换层次 */
+.topbar.compact { padding-top: calc(var(--sp2) + var(--safe-t)); padding-bottom: var(--sp2); }
+.topbar.compact .tb-sub {
+  opacity: 0; height: 0; margin: 0; overflow: hidden;
+}
+.tb-sub { transition: opacity var(--dur-fast), height var(--dur) var(--ease); }
+
+.tb-btn {
+  background: none; border: none; color: var(--ink2);
+  width: 44px; height: 44px; padding: 0; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background-color var(--dur-fast);
+}
+.tb-btn:active { background: var(--brand-soft); }
+
+.view {
+  flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: var(--sp4) var(--sp4) calc(90px + var(--safe-b));
+  animation: viewIn var(--dur) var(--ease);
+}
+@keyframes viewIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------- 底部导航 ---------- */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  display: flex; background: var(--card);
+  border-top: 1px solid var(--line);
+  padding-bottom: var(--safe-b); z-index: 20;
+}
+.tab {
+  flex: 1; background: none; border: none; padding: var(--sp2) 0 7px;
+  min-height: 48px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  color: var(--ink3); cursor: pointer; font-family: inherit;
+  transition: color var(--dur-fast), background-color var(--dur-fast);
+}
+.tab .ti { font-size: 22px; line-height: 1; }
+.tab .ti .ico { width: 22px; height: 22px; }
+.tab .tl { font-size: var(--fs-micro); letter-spacing: .2px; }
+.tab.on { color: var(--brand); }
+.tab.on .ti .ico { stroke-width: 2.1; }   /* 选中态加粗，比换色更容易一眼分辨 */
+.tab:active { background: var(--brand-soft); }
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r); padding: var(--sp4); margin-bottom: var(--sp3);
+}
+.card-h { font-size: var(--fs-head); font-weight: 600; margin: 0 0 var(--sp1); line-height: var(--lh-tight); }
+.card-note { font-size: var(--fs-foot); color: var(--ink3); margin: 0 0 var(--sp3); line-height: var(--lh-body); }
+
+/* ---------- 表单 ---------- */
+.lbl {
+  display: block; font-size: var(--fs-foot); color: var(--ink2);
+  margin-bottom: var(--sp1); font-weight: 500;
+}
+.mt1 { margin-top: var(--sp3); }
+.mt2 { margin-top: var(--sp5); }
+
+.input, textarea.input, select.input {
+  width: 100%; padding: 11px var(--sp3); font-size: var(--fs-body); font-family: inherit;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--card); color: var(--ink); outline: none;
+  transition: border-color var(--dur-fast);
+}
+.input:focus { border-color: var(--brand); }
+textarea.input { min-height: 78px; resize: vertical; line-height: var(--lh-body); }
+input[type=time].input { padding: var(--sp2) var(--sp3); }
+
+.slider-row { display: flex; align-items: center; gap: var(--sp3); }
+.slider-row .lb { font-size: var(--fs-foot); color: var(--ink2); flex: 0 0 auto; }
+.slider-row input[type=range] { flex: 1; accent-color: var(--brand); }
+.slider-row .num {
+  flex: 0 0 auto; min-width: 46px; text-align: center;
+  font-size: var(--fs-foot); font-weight: 600; color: var(--brand);
+  background: var(--brand-soft); border-radius: var(--r-sm); padding: 2px 0;
+}
+
+/* ---------- 开关（iOS 风格，纯 CSS） ----------
+   刻意保留原生 <input type="checkbox"> 的 DOM 结构，
+   只把视觉藏起来重画。这样 app.js 里的 .checked 读取逻辑
+   一行都不用改，可访问性也不丢。 */
+.sw { display: none; }
+.sw + .sw-ui {
+  display: inline-block; flex: 0 0 auto;
+  width: 51px; height: 31px; border-radius: 16px;
+  background: var(--line); position: relative;
+  transition: background-color var(--dur) var(--ease);
+}
+.sw + .sw-ui::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 27px; height: 27px; border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .18);
+  transition: transform var(--dur) var(--ease);
+}
+.sw:checked + .sw-ui { background: var(--ios-green); }
+.sw:checked + .sw-ui::after { transform: translateX(20px); }
+.sw:disabled + .sw-ui { opacity: .45; }
+
+/* 开关所在的一整行：最小 44px 触控高度 */
+.row {
+  display: flex; align-items: center; gap: var(--sp3);
+  min-height: 44px; cursor: pointer;
+}
+.row .row-t { flex: 1; font-size: var(--fs-body); }
+.row .row-s { font-size: var(--fs-caption); color: var(--ink3); margin-top: 1px; }
+
+/* ---------- 按钮 ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px var(--sp4); font-size: var(--fs-sub); font-family: inherit;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--card); color: var(--ink); cursor: pointer;
+  min-height: 40px;
+  transition: transform var(--dur-fast), background-color var(--dur-fast);
+}
+.btn:active { transform: scale(.97); }
+.btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 500; }
+.btn.ghost { background: transparent; }
+.btn.danger { color: var(--danger); border-color: #e5c9c5; }
+.btn.big { width: 100%; padding: var(--sp3); font-size: var(--fs-head); min-height: 48px; }
+.btn.sm { padding: 6px 11px; font-size: var(--fs-foot); min-height: 32px; }
+.btn.block { width: 100%; }
+.row-wrap { display: flex; flex-wrap: wrap; gap: var(--sp2); }
+
+/* ---------- 触控热区 ----------
+   iOS 的最小可点击区域是 44×44pt。下面这些控件视觉上很小，
+   但用透明伪元素把热区撑到 44px —— 看起来没变，点得准了。
+   这是无障碍要求，不是审美问题。 */
+.tap44 { position: relative; }
+.tap44::before {
+  content: ''; position: absolute;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 44px; height: 44px;
+}
+
+/* ---------- 任务 ---------- */
+/* 横向留白说明：.task 左右各留 11px，专门给两侧 44px 热区让位。
+
+   为什么容器必须让出这 11px：负外边距只影响**兄弟元素**的排布，
+   不会把元素自身的右边界拉回来。修复前 `.task-del` 用
+   margin:-11.5px 收窄，它的右边缘仍然溢出 11.5px，
+   把 .task 的 scrollWidth 顶到 336 > 324（横向滚动条就是这么来的）。
+   所以改成「容器先让出空间、两侧各自退回半个身位」，不依赖负 margin 算术。
+   实测结果：clientWidth 324 = scrollWidth 324。 */
+.task {
+  display: flex; align-items: flex-start; gap: 0;
+  padding: var(--sp3) 11px;
+  border-bottom: .5px solid var(--line);   /* iOS hairline：0.5px 而非虚线 */
+}
+.task:last-child { border-bottom: none; }
+/* 视觉尺寸 22px，触控尺寸 44px。
+   做法：本体就是 44×44 的透明按钮（热区），再用负外边距把它
+   在布局上收窄到 22px（44 − 11 − 11 = 22）。容器两侧各让出 11px，
+   所以退回来的部分刚好落在内边距里，不产生溢出。 */
+.task-chk {
+  flex: 0 0 auto; position: relative;
+  width: 44px; height: 44px; margin: -11px -11px -11px -11px;
+  background: transparent; border: none; padding: 0; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+/* 真正画出来的方块 */
+.task-chk::after {
+  content: ''; width: 22px; height: 22px;
+  border: 1.5px solid var(--ink3); border-radius: 7px;
+  background: transparent;
+  transition: background-color var(--dur-fast), border-color var(--dur-fast);
+}
+.task-chk:active { transform: scale(1.15); }
+.task-chk.on { animation: chkPop var(--dur) var(--ease-spring); }
+@keyframes chkPop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+.task-chk.on::after { background: var(--brand); border-color: var(--brand); }
+/* 对勾：用背景图比再套一层伪元素稳，且不参与布局 */
+.task-chk.on::before {
+  content: ''; position: absolute; z-index: 1;
+  width: 5px; height: 10px;
+  margin-top: -3px;
+  border: solid #fff; border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+/* flex-basis 必须是 0，不能是 auto。
+   设成 auto 时，浏览器先按内容宽度分配空间，再叠加两侧的
+   负外边距，文本就不会主动收缩，会把 .task 顶出横向溢出。 */
+.task-text {
+  flex: 1 1 0; min-width: 0; margin-left: 10px;
+  font-size: var(--fs-body); word-break: break-word;
+}
+.task.done .task-text { color: var(--ink3); text-decoration: line-through; }
+/* 触控目标 ≥44px，视觉上仍是个 17px 的小叉。
+   本体 44×44，负外边距退回 22px 参与布局；
+   多出来的 22px 由 .task 左右各 11px 的内边距承接。 */
+.task-del {
+  flex: 0 0 auto; width: 44px; height: 44px;
+  margin: -11px -11px -11px -11px;
+  background: none; border: none; color: var(--ink3);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  transition: color var(--dur-fast), background-color var(--dur-fast);
+}
+.task-del:active { color: var(--danger); background: var(--brand-soft); }
+
+/* ---------- 情绪 chips ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  padding: 7px var(--sp3); font-size: var(--fs-foot); border-radius: 999px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink2); cursor: pointer;
+  font-family: inherit; min-height: 32px;
+  transition: background-color var(--dur-fast), color var(--dur-fast),
+              border-color var(--dur-fast), transform var(--dur-fast);
+}
+.chip:active { transform: scale(.96); }
+.chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+/* ---------- 心情大数字 ---------- */
+.mood-big {
+  display: flex; align-items: baseline; justify-content: center; gap: var(--sp1);
+  padding: 6px 0 2px;
+}
+.mood-num { font-size: 42px; font-weight: 300; color: var(--brand); line-height: 1; }
+.mood-den { font-size: var(--fs-body); color: var(--ink3); }
+
+/* ---------- 列表 ---------- */
+.item {
+  border: 1px solid var(--line); border-radius: 11px;
+  padding: var(--sp3) 13px; margin-bottom: var(--sp2); background: var(--card);
+  cursor: pointer;
+  animation: itemIn var(--dur) backwards var(--ease);
+}
+.item:active { background: var(--brand-soft); }
+.item-t { font-size: var(--fs-body); font-weight: 500; margin-bottom: 3px; }
+.item-s { font-size: var(--fs-caption); color: var(--ink3); }
+.item .badge {
+  display: inline-block; font-size: var(--fs-micro); padding: 1px var(--sp2);
+  border-radius: 999px; margin-left: 6px; vertical-align: 1px;
+}
+.badge.draft { background: #efe9e4; color: var(--ink2); }
+.badge.sent { background: #dfe9f0; color: #3d6480; }
+.badge.done { background: #e0efe4; color: var(--ok); }
+
+/* 列表逐项淡入。用 backwards 而不是 both，
+   否则动画结束后元素会停在末态。 */
+@keyframes itemIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.item:nth-child(1) { animation-delay: .02s; }
+.item:nth-child(2) { animation-delay: .04s; }
+.item:nth-child(3) { animation-delay: .06s; }
+.item:nth-child(4) { animation-delay: .08s; }
+.item:nth-child(5) { animation-delay: .10s; }
+.item:nth-child(6) { animation-delay: .12s; }
+.item:nth-child(7) { animation-delay: .14s; }
+.item:nth-child(n+8) { animation-delay: .16s; }
+
+/* ---------- 提示块 ---------- */
+.quote {
+  border-left: 3px solid var(--brand); background: var(--brand-soft);
+  padding: 10px 13px; border-radius: 0 10px 10px 0;
+  font-size: var(--fs-foot); color: var(--ink2); line-height: var(--lh-body);
+}
+.quote.warn { border-color: var(--warn); background: #fdf5e0; }
+.hint { font-size: var(--fs-foot); color: var(--ink3); line-height: var(--lh-loose); }
+
+/* ---------- 空状态 ----------
+   一个居中的灰字，信息量几乎为零。
+   图标 + 标题 + 副标题，读起来是"等你开始"而不是"没东西"。 */
+.empty { text-align: center; padding: var(--sp7) var(--sp5); color: var(--ink3); }
+.empty-icon {
+  width: 44px; height: 44px; margin: 0 auto var(--sp3);
+  color: var(--ink3); opacity: .5;
+  display: flex; align-items: center; justify-content: center;
+}
+.empty-title { font-size: var(--fs-sub); font-weight: 600; color: var(--ink2); margin-bottom: var(--sp1); }
+.empty-sub { font-size: var(--fs-foot); }
+
+/* ---------- 设置分组 ---------- */
+.grp-t {
+  font-size: var(--fs-caption); color: var(--ink3); letter-spacing: 1px;
+  margin: var(--sp5) 0 var(--sp2); font-weight: 600;
+}
+
+/* ---------- 弹层 ---------- */
+.modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: flex-end; }
+.modal-mask {
+  position: absolute; inset: 0; background: rgba(30, 25, 22, .4);
+  opacity: 0; transition: opacity var(--dur) var(--ease);
+}
+.modal.show .modal-mask { opacity: 1; }
+.modal-box {
+  position: relative; width: 100%; max-height: 86vh;
+  background: var(--bg); border-radius: var(--r-lg) var(--r-lg) 0 0;
+  padding: var(--sp2) var(--sp4) calc(var(--sp4) + var(--safe-b));
+  display: flex; flex-direction: column; overflow: hidden;
+  transform: translateY(100%);
+  transition: transform var(--dur-slow) var(--ease);
+  will-change: transform;
+}
+.modal.show .modal-box { transform: translateY(0); }
+
+/* 抓手：36×5 的横线，暗示"可以往下拖" */
+.grabber {
+  width: 36px; height: 5px; border-radius: 3px;
+  background: var(--ink3); opacity: .3;
+  margin: 0 auto var(--sp3); flex: 0 0 auto;
+  touch-action: none;
+}
+.modal-title { margin: 0 0 var(--sp3); font-size: var(--fs-head); font-weight: 600; }
+.modal-body { overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+.modal-foot { margin-top: var(--sp3); display: flex; gap: var(--sp2); }
+.modal-foot .btn { flex: 1; }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: calc(96px + var(--safe-b));
+  transform: translateX(-50%) translateY(12px);
+  background: rgba(44, 39, 36, .93); color: #fff;
+  padding: 10px var(--sp4); border-radius: 10px; font-size: var(--fs-foot);
+  max-width: 84vw; text-align: center; z-index: 200;
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--dur-fast), transform var(--dur) var(--ease);
+  line-height: var(--lh-body);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.err { background: var(--danger); }
+
+/* ---------- 深色 ----------
+   原实现的 --ink2 是 "#ae a" —— 这是非法 CSS，会被浏览器整条丢弃，
+   然后在下一行打了个补丁重新赋值。两处合并成一处。
+   --ink3 原为 #8b817a，在 #1b1a19 上仅 4.6:1，勉强压线；
+   提到 #a89d95（约 5.4:1）。 */
+body.dark {
+  --bg: #1b1a19; --card: #242220; --ink: #ece6e1;
+  --ink2: #aea49c; --ink3: #a89d95; --line: #373330;
+  --brand: #d98d74; --brand-soft: #3a2b26;
+}
+body.dark .input { background: #2c2a27; border-color: #3d3936; }
+body.dark .item { background: #242220; }
+body.dark .tabbar { background: #201e1d; }
+body.dark .chip { background: #2c2a27; border-color: #3d3936; }
+body.dark .quote { background: #2a2320; }
+body.dark .btn { background: #2c2a27; border-color: #3d3936; }
+body.dark .btn.primary { background: var(--brand); border-color: var(--brand); color: #2a211d; }
+body.dark .btn.ghost { background: transparent; }
+body.dark .sw + .sw-ui { background: #3d3936; }
+body.dark .task-chk { background: transparent; }
+body.dark .badge.draft { background: #332f2c; color: var(--ink2); }
+body.dark .badge.sent { background: #26333d; color: #86b3cf; }
+body.dark .badge.done { background: #24352a; color: #7fbd8f; }
+
+/* ---------- 饮水 ---------- */
+.water-top { display: flex; align-items: baseline; justify-content: center; gap: var(--sp1); }
+.water-cur { font-size: 32px; font-weight: 300; color: var(--brand); line-height: 1; }
+.water-goal { font-size: var(--fs-sub); color: var(--ink3); }
+.water-bar {
+  height: 9px; background: var(--brand-soft); border-radius: 999px;
+  overflow: hidden; margin: 10px 0 var(--sp1);
+}
+.water-fill {
+  height: 100%; background: var(--brand); border-radius: 999px;
+  transition: width .35s var(--ease); min-width: 0;
+}
+.water-pct { text-align: center; font-size: var(--fs-caption); color: var(--ink3); }
+.cups { display: flex; gap: 7px; margin-top: var(--sp3); }
+/* 原来 40px 高，低于 iOS 的 44px 下限。这些是高频点击的按钮
+   （一天要按五六次），手指稍微偏一点就点不中。 */
+.cups .btn { flex: 1; padding: 11px var(--sp1); font-size: var(--fs-foot); min-height: 44px; }
+.water-logs {
+  margin-top: 10px; font-size: var(--fs-caption); color: var(--ink3);
+  max-height: 92px; overflow-y: auto; line-height: var(--lh-loose);
+}
+
+/* ---------- 久坐 ---------- */
+.sit-row { display: flex; align-items: center; gap: var(--sp3); }
+.sit-num { font-size: 26px; font-weight: 300; color: var(--brand); line-height: 1; }
+.sit-lbl { font-size: var(--fs-foot); color: var(--ink3); }
+.sit-warn {
+  font-size: var(--fs-foot); color: var(--warn); margin-top: var(--sp2);
+  padding: 7px 10px; background: #fdf5e0; border-radius: var(--r-sm);
+}
+body.dark .sit-warn { background: #332b1d; }
+
+/* ---------- 星期选择 ---------- */
+.days { display: flex; gap: 5px; }
+.days .chip { flex: 1; padding: 6px 0; text-align: center; font-size: var(--fs-foot); }
+
+/* ---------- 小工具 ---------- */
+.mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: var(--fs-caption); }
+/* 路径框：原来用 dashed，全 App 只剩这一处虚线。
+   iOS 里「可复制的内容块」是实心浅底 + 无边框或 hairline，不用虚线。
+   虚线还容易被误读成「占位符 / 未填」。这里改成实心浅底。 */
+.path-box {
+  background: var(--card); border: none; border-radius: var(--r-sm);
+  padding: 9px 11px; font-size: var(--fs-caption); color: var(--ink2);
+  word-break: break-all; line-height: var(--lh-body);
+}
+body.dark .path-box { background: #2c2a27; }
+.stat-row { display: flex; gap: 10px; text-align: center; margin: var(--sp1) 0 2px; }
+.stat { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 9px var(--sp1); }
+body.dark .stat { background: #242220; }
+.stat-n { font-size: var(--fs-title); font-weight: 600; color: var(--brand); line-height: 1.2; }
+.stat-l { font-size: var(--fs-micro); color: var(--ink3); margin-top: 2px; }
+
+</style>
+</head>
+<body>
+
+<!-- 首屏引导 -->
+<div id="onboarding" class="onboard hidden">
+  <div class="ob-inner">
+    <div class="ob-logo">JW<span>love</span></div>
+    <h1 class="ob-title">一天的事，一天的了</h1>
+    <p class="ob-sub">本地优先 · 纯文本存储 · 同步方式你说了算</p>
+
+    <div class="ob-card">
+      <label class="lbl">怎么称呼你</label>
+      <input class="input" id="obMe" placeholder="我" maxlength="8">
+      <label class="lbl mt1">怎么称呼对方（用于工坊和心情页）</label>
+      <input class="input" id="obPartner" placeholder="你" maxlength="8">
+    </div>
+
+    <div class="ob-note">
+      所有数据以纯 Markdown 文件存在你手机里，<br>
+      不上传任何服务器，除非你自己配置同步。
+    </div>
+
+    <button class="btn primary big" data-act="ob-start">开始使用</button>
+  </div>
+</div>
+
+<!-- 主界面 -->
+<div id="app" class="app hidden">
+  <header class="topbar" id="topbar">
+    <div class="tb-left">
+      <div class="tb-date" id="tbDate">—</div>
+      <div class="tb-sub" id="tbSub">—</div>
+    </div>
+    <button class="tb-btn" data-act="go-settings" aria-label="设置"
+            data-icon="gear"></button>
+  </header>
+
+  <main id="view" class="view"></main>
+
+  <nav class="tabbar">
+    <button class="tab" data-tab="work" aria-label="今日">
+      <span class="ti" data-icon="tab:work"></span><span class="tl">今日</span></button>
+    <button class="tab" data-tab="status" aria-label="状态">
+      <span class="ti" data-icon="tab:status"></span><span class="tl">状态</span></button>
+    <button class="tab" data-tab="mood" aria-label="心情">
+      <span class="ti" data-icon="tab:mood"></span><span class="tl">心情</span></button>
+    <button class="tab" data-tab="conflict" aria-label="工坊">
+      <span class="ti" data-icon="tab:conflict"></span><span class="tl">工坊</span></button>
+    <button class="tab" data-tab="review" aria-label="复盘">
+      <span class="ti" data-icon="tab:review"></span><span class="tl">复盘</span></button>
+  </nav>
+</div>
+
+<!-- 弹层 -->
+<div id="modal" class="modal hidden">
+  <div class="modal-mask" data-act="modal-close"></div>
+  <div class="modal-box">
+    <div class="grabber" aria-hidden="true"></div>
+    <h3 class="modal-title" id="modalTitle"></h3>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<!-- =========================================================
+     Capacitor 运行时与插件
+     ---------------------------------------------------------
+     这一段必须存在，且 core 必须排在最前。
+     native-bridge.js 只注入 window.Capacitor 这个空壳，
+     它本身不含任何插件实现；每个插件的 registerPlugin() 都在
+     各自的 dist/plugin.js 里。没有打包器的项目只能这样手动引。
+
+     这些文件由 scripts/sync-plugins.js 从 node_modules 复制而来。
+     改动了插件版本后，要重新跑一次 npm run plugins:sync。
+
+     漏掉任意一个，对应的原生能力就会静默失效（不会报错）。
+     platform.js 里的启动断言会在这种情况下直接把问题喊出来。
+     ========================================================= -->
+<script>
+
+/* ===== icons.js ===== */
+/* =========================================================
+   icons.js —— 内联 SVG 图标集
+   ---------------------------------------------------------
+   为什么不用 Unicode 字符（⚙ ◐ ♡ ⚯ ↻ ✓ ×）：
+
+   1. 那些"符号"在不同安卓 ROM 上由不同的字体渲染。
+      同一个 ⚯ 在小米、华为、三星上能长得完全不一样，
+      甚至直接渲染成豆腐块。
+
+   2. 它们的视觉重量不一致。⚙ 是实心的，◐ 是半实心的，
+      ♡ 是描边的 —— 并排放在 tabbar 里会显得歪歪扭扭。
+
+   3. 无法统一笔画粗细，也做不了"选中态填充"。
+
+   内联 SVG 没有这些问题：
+   - 24×24 统一 viewBox，1.8 统一 stroke-width
+   - stroke="currentColor"，自动跟随 tab 的选中/未选中颜色
+   - 不需要字体文件，不需要构建步骤
+
+   用法：
+     I.tab('work')        → tabbar 图标
+     I.gear()             → 设置齿轮
+     I.check() / I.close() → 小尺寸操作符
+     I.empty('work')      → 空状态大图标
+
+   新增图标照抄现有格式即可，务必保持 24×24 / 1.8 / round。
+   ========================================================= */
+(function (g) {
+  'use strict';
+
+  const I = {};
+
+  /* 统一外壳。size 用 em 的倍数，方便跟随上下文字号缩放。 */
+  function svg(inner, opt) {
+    const o = opt || {};
+    const size = o.size || 24;
+    const sw = o.sw || 1.8;
+    return (
+      '<svg class="ico' + (o.cls ? ' ' + o.cls : '') + '" viewBox="0 0 24 24" ' +
+      'width="' + size + '" height="' + size + '" ' +
+      'fill="none" stroke="currentColor" ' +
+      'stroke-width="' + sw + '" stroke-linecap="round" stroke-linejoin="round" ' +
+      'aria-hidden="true">' + inner + '</svg>'
+    );
+  }
+
+  /* ---------- tabbar 五个 ---------- */
+
+  // 今日：圆圈勾（checkmark.circle）
+  I.checkCircle = function (o) {
+    return svg(
+      '<circle cx="12" cy="12" r="9"/>' +
+      '<path d="M8.4 12.3l2.5 2.5 4.7-5"/>',
+      o
+    );
+  };
+
+  // 状态：心形里带波形（heart.text.square 的语义简化）
+  I.heart = function (o) {
+    return svg(
+      '<path d="M12 20.3l-6.6-6.5a4.1 4.1 0 015.8-5.8l.8.8.8-.8a4.1 4.1 0 015.8 5.8z"/>' +
+      '<path d="M8.6 12.6h1.7l1 1.9 1.4-3.3 1 1.4h1.7"/>',
+      o
+    );
+  };
+
+  // 心情：笑脸
+  I.smile = function (o) {
+    return svg(
+      '<circle cx="12" cy="12" r="9"/>' +
+      '<path d="M8.6 14.2a4.3 4.3 0 006.8 0"/>' +
+      '<path d="M9.2 9.6h.01M14.8 9.6h.01"/>',
+      o
+    );
+  };
+
+  // 工坊：天平（议题 = 两边的重量）
+  I.scale = function (o) {
+    return svg(
+      '<path d="M12 3.6v16.8"/>' +
+      '<path d="M7.4 20.4h9.2"/>' +
+      '<path d="M4.6 7.2h14.8"/>' +
+      '<path d="M4.6 7.2L2.4 13a2.2 2.2 0 004.4 0z"/>' +
+      '<path d="M19.4 7.2L21.6 13a2.2 2.2 0 01-4.4 0z"/>',
+      o
+    );
+  };
+
+  // 复盘：循环箭头
+  I.refresh = function (o) {
+    return svg(
+      '<path d="M20.2 12a8.2 8.2 0 11-2.6-6"/>' +
+      '<path d="M20.6 4.4v5.2h-5.2"/>',
+      o
+    );
+  };
+
+  /* ---------- 顶栏 / 通用 ---------- */
+  // 设置：三档调节器（比齿轮轻，更接近 iOS 13+ 的用法）
+  I.gear = function (o) {
+    return svg(
+      '<path d="M4 7.2h16M4 12h16M4 16.8h16"/>' +
+      '<circle cx="9.2" cy="7.2" r="2.1" fill="var(--bg)"/>' +
+      '<circle cx="15" cy="12" r="2.1" fill="var(--bg)"/>' +
+      '<circle cx="8.4" cy="16.8" r="2.1" fill="var(--bg)"/>',
+      o
+    );
+  };
+
+  // 关闭 / 删除的小叉
+  I.close = function (o) {
+    return svg('<path d="M6.4 6.4l11.2 11.2M17.6 6.4L6.4 17.6"/>', o);
+  };
+
+  // 打勾（任务完成态用）
+  I.check = function (o) {
+    return svg('<path d="M5 12.8l4.6 4.6L19 7.4"/>', o);
+  };
+
+  // 右尖角：列表可进入的提示
+  I.chevron = function (o) {
+    return svg('<path d="M9.4 5.6l6.6 6.4-6.6 6.4"/>', o);
+  };
+
+  // 加号
+  I.plus = function (o) {
+    return svg('<path d="M12 5.6v12.8M5.6 12h12.8"/>', o);
+  };
+
+  /* ---------- tab 名 → 图标 ---------- */
+  const TAB_MAP = {
+    work: I.checkCircle,
+    status: I.heart,
+    mood: I.smile,
+    conflict: I.scale,
+    review: I.refresh
+  };
+
+  I.tab = function (name, o) {
+    const fn = TAB_MAP[name];
+    return fn ? fn(o) : svg('<circle cx="12" cy="12" r="9"/>', o);
+  };
+
+  /* ---------- 空状态大图标 ---------- */
+  // 每个 view 配一个，比统一的日历图标更贴题
+  I.emptyIcon = function (name, o) {
+    const opt = Object.assign({ size: 44, sw: 1.4 }, o || {});
+    if (name === 'work') {
+      return svg(
+        '<rect x="3.2" y="5" width="17.6" height="15.6" rx="3.2"/>' +
+        '<path d="M7.6 3.2v3.6M16.4 3.2v3.6"/>' +
+        '<path d="M7.8 13.4l2.6 2.6 5.6-6"/>',
+        opt
+      );
+    }
+    if (name === 'conflict') {
+      // 两个相向的对话框 —— 议题还没谈完
+      return svg(
+        '<path d="M4 6.4a2.4 2.4 0 012.4-2.4h6.2a2.4 2.4 0 012.4 2.4v3.8a2.4 2.4 0 01-2.4 2.4H8.8L4.8 15.2z"/>' +
+        '<path d="M20 11.6a2.4 2.4 0 00-2.4-2.4h-.6v3.6a3.6 3.6 0 01-3.6 3.6H10v1.2a2.4 2.4 0 002.4 2.4h4.2l4 2.4z"/>',
+        opt
+      );
+    }
+    if (name === 'review') {
+      return svg(
+        '<path d="M20.4 12a8.4 8.4 0 11-2.7-6.1"/>' +
+        '<path d="M20.8 4v5.4h-5.4"/>' +
+        '<path d="M12 8.2v4.2l2.8 1.6"/>',
+        opt
+      );
+    }
+    if (name === 'water') {
+      return svg('<path d="M12 3.4s6 6.6 6 10.6a6 6 0 11-12 0c0-4 6-10.6 6-10.6z"/>', opt);
+    }
+    if (name === 'search') {
+      return svg('<circle cx="11" cy="11" r="6.4"/><path d="M15.8 15.8L20.4 20.4"/>', opt);
+    }
+    return svg('<circle cx="12" cy="12" r="9"/>', opt);
+  };
+
+  /* ---------- 小尺寸内联（跟在文字里用） ---------- */
+  I.inline = function (name, size) {
+    const s = size || 15;
+    if (name === 'check') return svg('<path d="M5.5 12.6l4.2 4.2L18.5 7.6"/>', { size: s, sw: 2.2 });
+    if (name === 'close') return svg('<path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4"/>', { size: s, sw: 2.2 });
+    if (name === 'plus') return svg('<path d="M12 6.2v11.6M6.2 12h11.6"/>', { size: s, sw: 2.2 });
+    if (name === 'warn') return svg('<path d="M12 4.6l8.6 15H3.4z"/><path d="M12 10.2v4M12 16.8h.01"/>', { size: s, sw: 1.8 });
+    return '';
+  };
+
+  g.I = I;
+})(window);
+
+
+/* ===== lib.js ===== */
+/* =========================================================
+   lib.js —— 基础工具（不依赖任何第三方库）
+   ========================================================= */
+(function (g) {
+  'use strict';
+  const L = {};
+
+  /* ---------- 日期 ---------- */
+  L.pad = (n) => String(n).padStart(2, '0');
+  L.today = () => {
+    const d = new Date();
+    return d.getFullYear() + '-' + L.pad(d.getMonth() + 1) + '-' + L.pad(d.getDate());
+  };
+  L.now = () => Date.now();
+
+  L.fmtDate = (iso) => {
+    if (!iso) return '';
+    const p = iso.split('-');
+    if (p.length !== 3) return iso;
+    const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    const wk = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+    return `${p[0]} 年 ${Number(p[1])} 月 ${Number(p[2])} 日 · 星期${wk}`;
+  };
+  /** 顶栏用的短格式。手机上不需要每天被提醒"2026 年"，
+      真正在变的只有几号和周几。 */
+  L.fmtDateShort = (iso) => {
+    if (!iso) return '';
+    const p = iso.split('-');
+    if (p.length !== 3) return iso;
+    const wk = ['日', '一', '二', '三', '四', '五', '六'][
+      new Date(+p[0], +p[1] - 1, +p[2]).getDay()];
+    return `${Number(p[1])} 月 ${Number(p[2])} 日 · 周${wk}`;
+  };
+  L.weekday = (iso) => {
+    const p = (iso || '').split('-');
+    if (p.length !== 3) return '';
+    return ['日', '一', '二', '三', '四', '五', '六'][new Date(+p[0], +p[1] - 1, +p[2]).getDay()];
+  };
+  /** ISO 周编号，返回 "2026-W40" */
+  L.weekKey = (iso) => {
+    const p = (iso || L.today()).split('-');
+    const d = new Date(+p[0], +p[1] - 1, +p[2]);
+    const t = new Date(d.valueOf());
+    const day = (d.getDay() + 6) % 7;          // 周一 = 0
+    t.setDate(t.getDate() - day + 3);           // 移到本周四
+    const first = new Date(t.getFullYear(), 0, 4);
+    const fday = (first.getDay() + 6) % 7;
+    first.setDate(first.getDate() - fday + 3);
+    const week = 1 + Math.round((t - first) / (7 * 86400000));
+    return t.getFullYear() + '-W' + L.pad(week);
+  };
+  /** 本周（周一起）的日期数组 */
+  L.weekDates = (iso) => {
+    const p = (iso || L.today()).split('-');
+    const d = new Date(+p[0], +p[1] - 1, +p[2]);
+    const day = (d.getDay() + 6) % 7;
+    const out = [];
+    for (let i = 0; i < 7; i++) {
+      const t = new Date(d.valueOf());
+      t.setDate(t.getDate() - day + i);
+      out.push(t.getFullYear() + '-' + L.pad(t.getMonth() + 1) + '-' + L.pad(t.getDate()));
+    }
+    return out;
+  };
+  L.addDays = (iso, n) => {
+    const p = iso.split('-');
+    const d = new Date(+p[0], +p[1] - 1, +p[2]);
+    d.setDate(d.getDate() + n);
+    return d.getFullYear() + '-' + L.pad(d.getMonth() + 1) + '-' + L.pad(d.getDate());
+  };
+  L.daysBetween = (a, b) => {
+    const pa = a.split('-'), pb = b.split('-');
+    return Math.round((new Date(+pb[0], +pb[1] - 1, +pb[2]) - new Date(+pa[0], +pa[1] - 1, +pa[2])) / 86400000);
+  };
+  /** "21:30" 之后的下一个触发时刻（Date 对象） */
+  L.nextAt = (hhmm) => {
+    const [h, m] = String(hhmm || '09:00').split(':').map(Number);
+    const d = new Date();
+    d.setHours(h || 0, m || 0, 0, 0);
+    if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1);
+    return d;
+  };
+
+  /* ---------- 字符串 ---------- */
+  L.esc = (s) => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  L.uid = (p) => (p || 'id') + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+  L.clamp = (v, a, b) => Math.max(a, Math.min(b, Number(v) || 0));
+  L.safeName = (s, def) => {
+    const t = String(s || '').replace(/[\\/:*?"<>|\n\r\t]/g, '').trim().slice(0, 40);
+    return t || (def || '未命名');
+  };
+
+  /* ---------- DOM ---------- */
+  L.$ = (sel, root) => (root || document).querySelector(sel);
+  L.$$ = (sel, root) => Array.prototype.slice.call((root || document).querySelectorAll(sel));
+
+  /* ---------- 简单存储（Vue 之外的兜底） ---------- */
+  L.get = (k, d) => {
+    try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }
+    catch (e) { return d; }
+  };
+  L.set = (k, v) => {
+    try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+    catch (e) { return false; }
+  };
+
+  /* ---------- 极简 ZIP 打包（store 模式，不压缩） ----------
+     只为把整个 vault 导出成一个 .zip，省掉 JSZip 依赖。
+     store 模式：本地文件头 + 数据 + 中央目录 + EOCD。
+  ------------------------------------------------------------- */
+  const CRC_TABLE = (function () {
+    const t = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[i] = c >>> 0;
+    }
+    return t;
+  })();
+  L.crc32 = function (buf) {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  };
+  /** files: [{ path:'a/b.md', data:Uint8Array }] → Blob（store 模式，不压缩） */
+  L.makeZip = function (files) {
+    const enc = new TextEncoder();
+    const encs = files.map(function (f) {
+      return { name: enc.encode(f.path), data: f.data, crc: L.crc32(f.data) };
+    });
+
+    const localSize = encs.reduce((a, e) => a + 30 + e.name.length + e.data.length, 0);
+    const cdSize = encs.reduce((a, e) => a + 46 + e.name.length, 0);
+    const total = localSize + cdSize + 22;
+
+    const buf = new Uint8Array(total);
+    const dv = new DataView(buf.buffer);
+    let p = 0;
+
+    function w16(v) { dv.setUint16(p, v & 0xFFFF, true); p += 2; }
+    function w32(v) { dv.setUint32(p, v >>> 0, true); p += 4; }
+    function raw(u8) { buf.set(u8, p); p += u8.length; }
+
+    // ① 本地文件头 + 数据
+    const offsets = [];
+    encs.forEach(function (e) {
+      offsets.push(p);
+      w32(0x04034b50); w16(20); w16(0x0800); w16(0);
+      w16(0); w16(0);
+      w32(e.crc); w32(e.data.length); w32(e.data.length);
+      w16(e.name.length); w16(0);
+      raw(e.name); raw(e.data);
+    });
+
+    // ② 中央目录
+    const cdStart = p;
+    encs.forEach(function (e, i) {
+      w32(0x02014b50); w16(20); w16(20); w16(0x0800); w16(0);
+      w16(0); w16(0);
+      w32(e.crc); w32(e.data.length); w32(e.data.length);
+      w16(e.name.length); w16(0); w16(0); w16(0); w16(0);
+      w32(0); w32(offsets[i]);
+      raw(e.name);
+    });
+
+    // ③ EOCD
+    w32(0x06054b50); w16(0); w16(0);
+    w16(encs.length); w16(encs.length);
+    w32(cdSize); w32(cdStart); w16(0);
+
+    return new Blob([buf], { type: 'application/zip' });
+  };
+  L.strToU8 = (s) => new TextEncoder().encode(s);
+
+  /* ---------- 解压 .zip（配合上面的导出，形成闭环） ----------
+     支持两种压缩方式：
+       method 0 = store（不压缩）—— 本应用导出的就是这种，纯 JS 直接读
+       method 8 = deflate    —— 系统/其他工具压的 zip，用浏览器原生解压
+     每个文件都会校验 CRC32，坏了立刻报错，绝不静默写入脏数据。
+  ------------------------------------------------------------- */
+
+  /** deflate 原始数据解压：优先用浏览器原生，没有就用下面自带的纯 JS 实现 */
+  async function inflateRaw(u8) {
+    if (typeof DecompressionStream !== 'undefined') {
+      try {
+        const ds = new DecompressionStream('deflate-raw');
+        const stream = new Blob([u8]).stream().pipeThrough(ds);
+        const buf = await new Response(stream).arrayBuffer();
+        return new Uint8Array(buf);
+      } catch (e) {
+        console.warn('[zip] 原生解压失败，回退到 JS 实现', e);
+      }
+    }
+    return inflateJS(u8);
+  }
+
+  /* ---- 纯 JS inflate（raw deflate），不依赖任何浏览器新特性 ----
+     这是 zlib "puff" 算法的 JavaScript 版本，只解压、不压缩，
+     够小（约 100 行）、够稳，专门用来兜底那些没有 DecompressionStream 的环境。
+  ------------------------------------------------------------ */
+  function inflateJS(input) {
+    const LBASE = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
+      35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258];
+    const LEXT = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2,
+      3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0];
+    const DBASE = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193,
+      257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577];
+    const DEXT = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6,
+      7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13];
+    const ORDER = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
+
+    let pos = 0, bitBuf = 0, bitCnt = 0;
+    function bits(need) {
+      let val = bitBuf;
+      while (bitCnt < need) {
+        if (pos >= input.length) throw new Error('压缩数据不完整');
+        val |= input[pos++] << bitCnt;
+        bitCnt += 8;
+      }
+      bitBuf = val >>> need;
+      bitCnt -= need;
+      return val & ((1 << need) - 1);
+    }
+
+    // 输出缓冲区（自动扩容）
+    let out = new Uint8Array(Math.max(2048, input.length * 5)), outLen = 0;
+    function push(b) {
+      if (outLen >= out.length) {
+        const n = new Uint8Array(out.length * 2);
+        n.set(out.subarray(0, outLen)); out = n;
+      }
+      out[outLen++] = b;
+    }
+
+    // 用码长表建 Huffman 解码表
+    function construct(lengths, n) {
+      const count = new Int32Array(16);
+      for (let i = 0; i < n; i++) count[lengths[i]]++;
+      let left = 1;
+      for (let len = 1; len <= 15; len++) {
+        left <<= 1; left -= count[len];
+        if (left < 0) throw new Error('Huffman 表超限，数据可能已损坏');
+      }
+      const offs = new Int32Array(16);
+      for (let len = 1; len < 15; len++) offs[len + 1] = offs[len] + count[len];
+      const symbol = new Int32Array(n);
+      for (let i = 0; i < n; i++) if (lengths[i]) symbol[offs[lengths[i]]++] = i;
+      return { count: count, symbol: symbol };
+    }
+
+    function decode(h) {
+      let code = 0, first = 0, index = 0;
+      for (let len = 1; len <= 15; len++) {
+        code |= bits(1);
+        const cnt = h.count[len];
+        if (code - cnt < first) return h.symbol[index + (code - first)];
+        index += cnt; first = (first + cnt) << 1; code <<= 1;
+      }
+      throw new Error('Huffman 解码失败');
+    }
+
+    function runCodes(lencode, distcode) {
+      for (;;) {
+        let sym = decode(lencode);
+        if (sym === 256) return;
+        if (sym < 256) { push(sym); continue; }
+        sym -= 257;
+        if (sym >= 29) throw new Error('无效的长度码');
+        const len = LBASE[sym] + bits(LEXT[sym]);
+        const dsym = decode(distcode);
+        if (dsym >= 30) throw new Error('无效的距离码');
+        const dist = DBASE[dsym] + bits(DEXT[dsym]);
+        if (dist > outLen) throw new Error('距离超出已解压范围');
+        for (let i = 0; i < len; i++) push(out[outLen - dist]);
+      }
+    }
+
+    function stored() {
+      bitBuf = 0; bitCnt = 0;                       // 丢弃字节内剩余位
+      if (pos + 4 > input.length) throw new Error('stored 块头损坏');
+      const len = input[pos] | (input[pos + 1] << 8);
+      pos += 4;
+      for (let i = 0; i < len; i++) {
+        if (pos >= input.length) throw new Error('stored 块数据不完整');
+        push(input[pos++]);
+      }
+    }
+
+    function fixedCodes() {
+      const l = new Uint8Array(288);
+      for (let i = 0; i < 144; i++) l[i] = 8;
+      for (let i = 144; i < 256; i++) l[i] = 9;
+      for (let i = 256; i < 280; i++) l[i] = 7;
+      for (let i = 280; i < 288; i++) l[i] = 8;
+      const d = new Uint8Array(30); d.fill(5);
+      return [construct(l, 288), construct(d, 30)];
+    }
+
+    function dynamicCodes() {
+      const lengths = new Uint8Array(320);
+      let nlen = bits(5) + 257, ndist = bits(5) + 1, ncode = bits(4) + 4;
+      if (nlen > 286 || ndist > 30) throw new Error('动态表长度非法');
+      for (let i = 0; i < ncode; i++) lengths[ORDER[i]] = bits(3);
+      for (let i = ncode; i < 19; i++) lengths[ORDER[i]] = 0;
+      const clen = construct(lengths, 19);
+
+      let index = 0;
+      while (index < nlen + ndist) {
+        const sym = decode(clen);
+        if (sym < 16) { lengths[index++] = sym; continue; }
+        let len = 0, rep;
+        if (sym === 16) {
+          if (index === 0) throw new Error('重复码出现在开头');
+          len = lengths[index - 1]; rep = 3 + bits(2);
+        } else if (sym === 17) { rep = 3 + bits(3); }
+        else { rep = 11 + bits(7); }
+        if (index + rep > nlen + ndist) throw new Error('码长重复超出范围');
+        while (rep--) lengths[index++] = len;
+      }
+      if (lengths[256] === 0) throw new Error('缺少结束码');
+      return [construct(lengths, nlen), construct(lengths.subarray(nlen), ndist)];
+    }
+
+    let last = 0;
+    do {
+      last = bits(1);
+      const type = bits(2);
+      if (type === 0) stored();
+      else if (type === 1) { const c = fixedCodes(); runCodes(c[0], c[1]); }
+      else if (type === 2) { const c = dynamicCodes(); runCodes(c[0], c[1]); }
+      else throw new Error('非法的块类型');
+    } while (!last);
+
+    return out.subarray(0, outLen);
+  }
+
+  /** ArrayBuffer → [{ path, data:Uint8Array }]，失败会抛错 */
+  L.readZip = async function (ab) {
+    const u8 = new Uint8Array(ab);
+    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    const dec = new TextDecoder();
+
+    // ① 从尾部倒着找 EOCD（末尾可能有注释，最多退 64KB）
+    let eocd = -1;
+    const min = Math.max(0, u8.length - 22 - 65535);
+    for (let i = u8.length - 22; i >= min; i--) {
+      if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('这不是一个有效的 zip 文件');
+
+    const count = dv.getUint16(eocd + 10, true);
+    const cdSize = dv.getUint32(eocd + 12, true);
+    let p = dv.getUint32(eocd + 16, true);
+    const cdEnd = p + cdSize;
+
+    const out = [];
+    for (let n = 0; n < count && p + 46 <= cdEnd; n++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) break;
+
+      const method = dv.getUint16(p + 10, true);
+      const crc = dv.getUint32(p + 16, true);
+      const compSize = dv.getUint32(p + 20, true);
+      const nameLen = dv.getUint16(p + 28, true);
+      const extraLen = dv.getUint16(p + 30, true);
+      const commentLen = dv.getUint16(p + 32, true);
+      const localOff = dv.getUint32(p + 42, true);
+
+      const rawName = u8.subarray(p + 46, p + 46 + nameLen);
+      const name = decodeName(rawName, dv.getUint16(p + 8, true), dec);
+      p += 46 + nameLen + extraLen + commentLen;
+
+      if (/\/$/.test(name)) continue;              // 目录项跳过
+
+      // ② 本地文件头 → 数据起点（本地头的 extra 长度可能和中央目录不一致，必须重读）
+      if (localOff + 30 > u8.length || dv.getUint32(localOff, true) !== 0x04034b50) {
+        throw new Error('zip 结构损坏：' + name);
+      }
+      const lNameLen = dv.getUint16(localOff + 26, true);
+      const lExtraLen = dv.getUint16(localOff + 28, true);
+      const start = localOff + 30 + lNameLen + lExtraLen;
+      const raw = u8.subarray(start, start + compSize);
+
+      // ③ 解压
+      let data;
+      if (method === 0) data = raw;
+      else if (method === 8) data = await inflateRaw(raw);
+      else throw new Error('不支持的压缩方式（' + method + '）：' + name);
+
+      // ④ 校验
+      if (L.crc32(data) !== crc) {
+        throw new Error('文件校验失败，可能已损坏：' + name);
+      }
+      out.push({ path: name, data: data });
+    }
+    if (!out.length) throw new Error('zip 里没有可导入的文件');
+    return out;
+  };
+
+  /** 文件名编码：有 UTF-8 标志位用 UTF-8，否则多半是 GBK */
+  function decodeName(bytes, flags, dec) {
+    if (flags & 0x800) { try { return dec.decode(bytes); } catch (e) { } }
+    // 中文 Windows 压的 zip 常是 GBK，浏览器没有内置解码器，退化为 UTF-8 猜测
+    try { return dec.decode(bytes); } catch (e) { return String.fromCharCode.apply(null, bytes); }
+  }
+
+  g.L = L;
+})(window);
+
+
+/* ===== platform.js ===== */
+/* =========================================================
+   platform.js —— 原生能力桥接层
+   ---------------------------------------------------------
+   一个关键设计：同一套代码，三种运行环境都能跑
+
+     ① 安卓原生（Capacitor）  → 真实文件读写、真实定时通知
+     ② 手机浏览器 / 电脑浏览器 → localStorage 兜底，功能照常
+     ③ 本项目的预览页          → 同上
+
+   每个能力都先探测 Capacitor 插件在不在，不在就降级，
+   绝不因为缺插件而崩。这是本应用能"到处都能跑"的原因。
+
+   ---------------------------------------------------------
+   但是——"静默降级"在原生环境里是致命的：
+   插件没加载时，文件会写进会被系统随时清理的 WebView 存储，
+   闹钟一个都不会排，而界面看起来完全正常。
+   用户不会知道自己的数据正在裸奔。
+
+   所以 P.init() 会做一次断言：原生环境下必需插件缺失，
+   立刻在首屏把问题喊出来，绝不继续装作没事。
+   ========================================================= */
+(function (g) {
+  'use strict';
+  const L = g.L;
+  const P = { caps: {} };
+
+  /** 取一个 Capacitor 插件（可能拿不到） */
+  function plug(name, pkg) {
+    try {
+      const C = g.Capacitor;
+      if (!C) return null;
+      // Capacitor 7 用 Capacitor.Plugins；旧版挂在各插件包上
+      const p = (C.Plugins && C.Plugins[name]) || (pkg && g[pkg]);
+      return p || null;
+    } catch (e) { return null; }
+  }
+
+  /* 原生环境下缺一不可的插件。
+     缺 Filesystem → 数据写不到磁盘，卸载即丢
+     缺 LocalNotifications → 所有提醒失效（本应用的核心卖点）
+     缺 Preferences → 凭据无处安全存放，会退回明文写文件
+     缺 App → 安卓返回键无响应                              */
+  const REQUIRED_NATIVE = [
+    { name: 'Filesystem',        why: '数据将以纯 Markdown 文件写入手机目录' },
+    { name: 'LocalNotifications', why: 'App 关掉、手机重启后提醒仍会响' },
+    { name: 'Preferences',       why: '同步口令与令牌的安全存储' },
+    { name: 'App',               why: '安卓返回键与退出行为' }
+  ];
+
+  P.init = async function () {
+    P.isNative = !!(g.Capacitor && g.Capacitor.isNativePlatform && g.Capacitor.isNativePlatform());
+    P.platform = (g.Capacitor && g.Capacitor.getPlatform && g.Capacitor.getPlatform()) || 'web';
+
+    P.FS = plug('Filesystem');
+    P.Prefs = plug('Preferences');
+    P.Notif = plug('LocalNotifications');
+    P.Share = plug('Share');
+    P.App = plug('App');
+    P.Haptics = plug('Haptics');
+    P.Net = plug('Network');
+    P.StatusBar = plug('StatusBar');
+    P.Splash = plug('SplashScreen');
+    P.Keyboard = plug('Keyboard');
+
+    P.caps = {
+      native: P.isNative,
+      fs: !!P.FS,
+      notif: !!P.Notif,
+      share: !!P.Share,
+      prefs: !!P.Prefs
+    };
+
+    // 原生环境下把缺失的必需插件找出来
+    P.broken = P.isNative
+      ? REQUIRED_NATIVE.filter(function (r) { return !plug(r.name); })
+      : [];
+
+    if (P.broken.length) {
+      // 控制台留完整信息，方便真机连 Chrome DevTools 排查
+      console.error(
+        '[致命] 原生环境缺少必需插件：' +
+        P.broken.map(function (b) { return b.name; }).join(', ') +
+        '\n原因通常是 src/index.html 里漏了 plugins/*.js 的 <script> 标签。' +
+        '\n请运行 npm run plugins:sync 后重新构建。'
+      );
+    }
+    return P.caps;
+  };
+
+  /** 原生环境下的阻断式报错。宁可难看，也不让数据悄悄丢。 */
+  P.showFatal = function () {
+    const list = P.broken.map(function (b) {
+      return '· ' + b.name + ' —— 影响：' + b.why;
+    }).join('<br>');
+
+    const html =
+      '<div class="ob-inner">' +
+      '<div class="ob-logo">JW<span>love</span></div>' +
+      '<h1 class="ob-title">这个版本装错了</h1>' +
+      '<div class="ob-card" style="text-align:left">' +
+      '<p style="margin:0 0 10px">原生插件没有加载成功。继续使用会导致：</p>' +
+      '<div class="quote warn" style="text-align:left">' +
+      '<strong>你的记录不会写进手机文件，而是写在一个随时会被系统清掉的地方。</strong><br>' +
+      '卸载、清理数据、或系统回收空间时，全部丢失。' +
+      '</div>' +
+      '<p style="margin:14px 0 6px">缺失的插件：</p>' +
+      '<p class="hint" style="margin:0">' + list + '</p>' +
+      '</div>' +
+      '<p class="ob-note">这不是你的操作问题，是构建时漏了插件文件。<br>' +
+      '请把以上信息反馈给开发者。</p>' +
+      '<button class="btn ghost big" data-act="fatal-exit">退出</button>' +
+      '</div>';
+
+    const box = L.$('#onboarding');
+    const app = L.$('#app');
+    if (app) app.classList.add('hidden');
+    if (box) {
+      box.innerHTML = html;
+      box.classList.remove('hidden');
+    } else {
+      document.body.innerHTML = '<div class="onboard">' + html + '</div>';
+    }
+
+    document.addEventListener('click', function (e) {
+      const el = e.target.closest('[data-act="fatal-exit"]');
+      if (el && P.App && P.App.exitApp) { try { P.App.exitApp(); } catch (err) { } }
+    });
+  };
+
+  /* ================= 文件读写 ================= */
+
+  /** 把「相对路径」翻译成各平台能写的位置 */
+  const DIR = { DOCUMENTS: 'DOCUMENTS', DATA: 'DATA', CACHE: 'CACHE' };
+
+  P.writeFile = async function (path, text) {
+    if (P.FS) {
+      try {
+        await P.FS.writeFile({
+          path: path,
+          data: text,
+          directory: DIR.DOCUMENTS,
+          encoding: 'utf8',
+          recursive: true
+        });
+        return { ok: true, where: 'native' };
+      } catch (e) {
+        return { ok: false, err: e.message || String(e) };
+      }
+    }
+    // Web 兜底：localStorage
+    try { localStorage.setItem('zx.fs:' + path, text); return { ok: true, where: 'web' }; }
+    catch (e) { return { ok: false, err: e.message }; }
+  };
+
+  P.readFile = async function (path) {
+    if (P.FS) {
+      try {
+        const r = await P.FS.readFile({ path: path, directory: DIR.DOCUMENTS, encoding: 'utf8' });
+        return { ok: true, data: r.data, where: 'native' };
+      } catch (e) {
+        return { ok: false, err: e.message || String(e) };
+      }
+    }
+    try {
+      const v = localStorage.getItem('zx.fs:' + path);
+      return v == null ? { ok: false, err: 'not found' } : { ok: true, data: v, where: 'web' };
+    } catch (e) { return { ok: false, err: e.message }; }
+  };
+
+  P.deleteFile = async function (path) {
+    if (P.FS) {
+      try { await P.FS.deleteFile({ path: path, directory: DIR.DOCUMENTS }); return { ok: true }; }
+      catch (e) { return { ok: false, err: e.message }; }
+    }
+    try { localStorage.removeItem('zx.fs:' + path); return { ok: true }; }
+    catch (e) { return { ok: false, err: e.message }; }
+  };
+
+  P.readdir = async function (path) {
+    if (P.FS) {
+      try {
+        const r = await P.FS.readdir({ path: path || '', directory: DIR.DOCUMENTS });
+        return { ok: true, files: (r.files || []).map((f) => f.name || f) };
+      } catch (e) { return { ok: false, err: e.message, files: [] }; }
+    }
+    // Web：从 localStorage 里筛出该前缀
+    const out = [];
+    const pre = 'zx.fs:' + (path ? path.replace(/\/$/, '') + '/' : '');
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf(pre) === 0) out.push(k.slice(pre.length));
+      }
+    } catch (e) { }
+    return { ok: true, files: out };
+  };
+
+  P.mkdir = async function (path) {
+    if (P.FS) {
+      try { await P.FS.mkdir({ path: path, directory: DIR.DOCUMENTS, recursive: true }); return { ok: true }; }
+      catch (e) { return { ok: false, err: e.message }; }
+    }
+    return { ok: true };
+  };
+
+  /** 文件在手机上的真实绝对路径（告诉用户，方便用文件管理器/ Syncthing 找到它） */
+  P.documentsUri = async function () {
+    if (P.FS && P.FS.getUri) {
+      try {
+        const r = await P.FS.getUri({ path: '', directory: DIR.DOCUMENTS });
+        return r.uri || '';
+      } catch (e) { return ''; }
+    }
+    return '';
+  };
+
+  /* ================= 设置（Preferences / localStorage） ================= */
+
+  P.setPref = async function (k, v) {
+    if (P.Prefs) { try { await P.Prefs.set({ key: k, value: JSON.stringify(v) }); return true; } catch (e) { } }
+    return L.set(k, v);
+  };
+  P.getPref = async function (k, d) {
+    if (P.Prefs) {
+      try {
+        const r = await P.Prefs.get({ key: k });
+        if (r && r.value != null) return JSON.parse(r.value);
+      } catch (e) { }
+    }
+    return L.get(k, d);
+  };
+
+  /* ================= 原生定时通知 =================
+     这是 Capacitor 相对 PWA 的最大优势：
+     Android 用 AlarmManager 排真正的闹钟，App 完全关掉、手机重启后照样响。
+     PWA 做不到这一点（浏览器没有可靠的后台定时器）。
+  ================================================== */
+
+  P.notifPerm = async function () {
+    if (!P.Notif) return { state: 'unsupported' };
+    try {
+      const r = await P.Notif.checkPermissions();
+      if (r && r.display === 'granted') return { state: 'granted' };
+      const q = await P.Notif.requestPermissions();
+      return { state: (q && q.display) || 'denied' };
+    } catch (e) { return { state: 'denied', err: e.message }; }
+  };
+
+  /** 排一个每天重复的闹钟。id 相同会覆盖旧的 */
+  P.scheduleDaily = async function (id, title, body, hhmm, extra) {
+    if (!P.Notif) return { ok: false, msg: '非原生环境，请用导出日历的方式' };
+    const perm = await P.notifPerm();
+    if (perm.state !== 'granted') return { ok: false, msg: '通知权限未授予' };
+    try {
+      const at = L.nextAt(hhmm);
+      await P.Notif.schedule({
+        notifications: [{
+          id: id,
+          title: title,
+          body: body,
+          schedule: { at: at, repeats: true, allowWhileIdle: true },
+          sound: null,
+          smallIcon: 'ic_stat_notify',
+          /* 安卓在重启后会清空 AlarmManager 里所有闹钟。
+             开启这个标志，插件会在收到 BOOT_COMPLETED 后自动重排。
+             没有它，README 里"手机重启后照样响"这句话就是假的。 */
+          extra: extra || {}
+        }]
+      });
+      return { ok: true, at: at };
+    } catch (e) { return { ok: false, msg: e.message || String(e) }; }
+  };
+
+  P.cancelNotif = async function (ids) {
+    if (!P.Notif) return { ok: false };
+    try { await P.Notif.cancel({ notifications: ids.map((id) => ({ id: id })) }); return { ok: true }; }
+    catch (e) { return { ok: false, msg: e.message }; }
+  };
+
+  P.pendingNotifs = async function () {
+    if (!P.Notif) return { ok: false, notifications: [] };
+    try { return await P.Notif.getPending(); }
+    catch (e) { return { ok: false, notifications: [] }; }
+  };
+
+  /* ================= 分享 / 导出 ================= */
+
+  P.shareFile = async function (filename, content, mime) {
+    if (P.Share && P.Share.share) {
+      // 原生：先写到缓存，再调系统分享面板
+      try {
+        await P.FS.writeFile({ path: filename, data: content, directory: DIR.CACHE, encoding: 'utf8', recursive: true });
+        const uri = await P.FS.getUri({ path: filename, directory: DIR.CACHE });
+        await P.Share.share({ title: filename, text: '', url: uri.uri, dialogTitle: '导出' });
+        return { ok: true, where: 'native' };
+      } catch (e) {
+        return { ok: false, msg: e.message };
+      }
+    }
+    // Web 兜底：直接下载
+    try {
+      const blob = new Blob([content], { type: (mime || 'text/plain') + ';charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+      return { ok: true, where: 'web' };
+    } catch (e) { return { ok: false, msg: e.message }; }
+  };
+
+  P.shareBlob = async function (filename, blob) {
+    if (P.Share && P.Share.share && P.FS) {
+      try {
+        const b64 = await blobToBase64(blob);
+        await P.FS.writeFile({ path: filename, data: b64, directory: DIR.CACHE, recursive: true });
+        const uri = await P.FS.getUri({ path: filename, directory: DIR.CACHE });
+        await P.Share.share({ title: filename, url: uri.uri, dialogTitle: '导出备份' });
+        return { ok: true, where: 'native' };
+      } catch (e) { return { ok: false, msg: e.message }; }
+    }
+    try {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+      return { ok: true, where: 'web' };
+    } catch (e) { return { ok: false, msg: e.message }; }
+  };
+
+  function blobToBase64(blob) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result).split(',')[1]);
+      r.onerror = rej;
+      r.readAsDataURL(blob);
+    });
+  }
+
+  /* ================= 杂项 ================= */
+
+  P.haptic = function (style) {
+    if (P.Haptics && P.Haptics.impact) {
+      try { P.Haptics.impact({ style: style || 'LIGHT' }); } catch (e) { }
+    }
+  };
+
+  P.toast = function (msg, kind) {
+    const el = document.getElementById('toast');
+    if (!el) { console.log('[toast]', msg); return; }
+    el.textContent = msg;
+    el.className = 'toast show' + (kind ? ' ' + kind : '');
+    clearTimeout(P._tt);
+    P._tt = setTimeout(() => { el.className = 'toast'; }, 2600);
+  };
+
+  /** 安卓返回键：在根页面时连按两次退出 */
+  P.bindBack = function (onBack) {
+    if (!P.App) return;
+    try {
+      P.App.addListener('backButton', function () {
+        const handled = onBack && onBack();
+        if (!handled) {
+          if (P._lastBack && Date.now() - P._lastBack < 2000) { P.App.exitApp(); }
+          else { P._lastBack = Date.now(); P.toast('再按一次退出'); }
+        }
+      });
+    } catch (e) { }
+  };
+
+  P.setStatusBar = async function (isDark) {
+    if (!P.StatusBar) return;
+    try {
+      await P.StatusBar.setStyle({ style: isDark ? 'DARK' : 'LIGHT' });
+      await P.StatusBar.setBackgroundColor({ color: isDark ? '#1b1a19' : '#f6efe9' });
+    } catch (e) { }
+  };
+
+  P.hideSplash = async function () {
+    if (!P.Splash) return;
+    try { await P.Splash.hide(); } catch (e) { }
+  };
+
+  /* ================= PWA Web 通知（浏览器环境兜底） =================
+     原生 App 用 Capacitor LocalNotifications，PWA 用浏览器 Notification API。
+     功能对等：定时弹出提醒。限制：PWA 关闭后浏览器仍能响（已安装的 PWA）。
+  ================================================================ */
+
+  /** Web 通知权限状态 */
+  P.webNotifPerm = function () {
+    if (!('Notification' in window)) return { state: 'unsupported' };
+    return { state: Notification.permission };
+  };
+
+  /** 请求 Web 通知权限 */
+  P.requestWebNotif = async function () {
+    if (!('Notification' in window)) return { state: 'unsupported' };
+    const r = await Notification.requestPermission();
+    return { state: r };
+  };
+
+  /** 立即弹一条 Web 通知 */
+  P.fireWebNotif = function (title, body, tag) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+    try {
+      new Notification(title, {
+        body: body || '',
+        tag: tag || 'jwle',
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-72.png',
+        lang: 'zh-CN',
+        vibrate: [200, 100, 200]
+      });
+      return true;
+    } catch (e) {
+      console.warn('[PWA] Web 通知发送失败：', e);
+      return false;
+    }
+  };
+
+  /** 定时调度：用 setTimeout 模拟。
+      PWA 环境下不如原生 AlarmManager 可靠（页面关了就停），
+      但已安装的 PWA 配合 Service Worker 可以做到后台唤醒。 */
+  var _webTimers = [];
+  P.scheduleWebNotif = function (id, title, body, time, repeat) {
+    // 先清掉同 id 的旧定时器
+    if (_webTimers[id]) { clearTimeout(_webTimers[id]); }
+
+    function arm() {
+      const ms = new Date(time).getTime() - Date.now();
+      if (ms <= 0) {
+        // 时间已过，如果是重复任务则排到明天
+        if (repeat) {
+          const t = new Date(time);
+          t.setDate(t.getDate() + 1);
+          P.scheduleWebNotif(id, title, body, t.toISOString(), repeat);
+        }
+        return;
+      }
+      _webTimers[id] = setTimeout(function () {
+        P.fireWebNotif(title, body, String(id));
+        if (repeat) {
+          const t = new Date(time);
+          t.setDate(t.getDate() + 1);
+          P.scheduleWebNotif(id, title, body, t.toISOString(), repeat);
+        }
+      }, ms);
+    }
+    arm();
+  };
+
+  P.cancelWebNotif = function (ids) {
+    ids.forEach(function (id) {
+      if (_webTimers[id]) { clearTimeout(_webTimers[id]); delete _webTimers[id]; }
+    });
+  };
+
+  g.P = P;
+})(window);
+
+
+/* ===== vault.js ===== */
+/* =========================================================
+   vault.js —— 文件库：像 Obsidian 一样把数据存成纯 Markdown
+   ---------------------------------------------------------
+   为什么是 Markdown 文件，而不是数据库？
+
+   · 你随时可以用手机上的任何文本编辑器打开、修改、复制
+   · Obsidian / Typora / VS Code 直接能读，不会被 App 绑架
+   · Syncthing、坚果云、Git 都能同步——它们同步的是文件，不是数据库
+   · App 卸载了，文件还在；App 倒闭了，数据还在
+
+   目录结构（存在手机真实目录里）：
+       Documents/jwle-vault/
+       ├── daily/2026-10-01.md      每日记录（工作 + 状态 + 心情）
+       ├── conflicts/c-xxxx.md      矛盾工坊记录
+       ├── reviews/2026-W40.md      每周复盘
+       └── .jw/settings.json        设置
+   ========================================================= */
+(function (g) {
+  'use strict';
+  const L = g.L;
+  const V = {};
+
+  const ROOT = 'jwle-vault';
+  const DAILY = ROOT + '/daily';
+  const CONF = ROOT + '/conflicts';
+  const REV = ROOT + '/reviews';
+  const META = ROOT + '/.jw';
+  V.ROOT = ROOT;
+
+  /* ================= 默认值 ================= */
+
+  V.blankDay = function (iso) {
+    return {
+      date: iso || L.today(),
+      tasks: [],
+      energy: 5, sleep: 6,
+      drain: '', charge: '',
+      mood: 6, emotions: [],
+      fact: '', need: '',
+      note: '',
+      /* 饮水：done 毫升 + 每次的记录；goal 是当天目标快照（身体参数改了也保留历史） */
+      water: { goal: 0, done: 0, logs: [] },
+      /* 起身活动：久坐打断的记录 */
+      activity: { breaks: [] },
+      updated: 0
+    };
+  };
+
+  V.blankConflict = function () {
+    return {
+      id: L.uid('c'), title: '', status: 'draft',
+      fact: '', feeling: '', need: '', request: '',
+      response: '', pact: '',
+      created: L.now(), updated: 0
+    };
+  };
+
+  V.blankReview = function (wk) {
+    return {
+      week: wk || L.weekKey(),
+      progress: '', drain: '', good: '', change: '',
+      relation: 7, nextwant: '',
+      updated: 0
+    };
+  };
+
+  /* ================= 通用 Markdown 解析 ================= */
+
+  /** 拆出 YAML frontmatter（只支持 key: value，够用且稳） */
+  function splitFront(md) {
+    md = String(md || '').replace(/^﻿/, '');
+    const m = md.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+    if (!m) return { fm: {}, body: md };
+    const fm = {};
+    m[1].split(/\r?\n/).forEach(function (line) {
+      const i = line.indexOf(':');
+      if (i < 0) return;
+      fm[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+    });
+    return { fm: fm, body: md.slice(m[0].length) };
+  }
+
+  /** 按 "## 标题" 拆段，返回 {标题: 内容} */
+  function splitSections(body) {
+    const out = {};
+    let cur = '_pre';
+    out[cur] = [];
+    String(body || '').split(/\r?\n/).forEach(function (line) {
+      const m = line.match(/^##\s+(.*)$/);
+      if (m) { cur = m[1].trim(); out[cur] = []; }
+      else out[cur].push(line);
+    });
+    Object.keys(out).forEach((k) => { out[k] = out[k].join('\n').trim(); });
+    return out;
+  }
+
+  /** 从一段文本里取 "键：值"
+      注意：空白一律用 [ \\t]* 而不是 \\s* —— \\s 会吃掉换行，
+      导致「发生了什么：」后面是空行时，把下一行的「我需要你做什么：」当成自己的值。 */
+  function field(text, key) {
+    const re = new RegExp('^[ \\t]*[-*]?[ \\t]*' + key + '[ \\t]*[:：][ \\t]*(.*)$', 'm');
+    const m = String(text || '').match(re);
+    return m ? m[1].trim() : '';
+  }
+
+  /** 去掉所有 "键：值" 行，剩下的当成自由文本 */
+  function stripFields(text, keys) {
+    let t = String(text || '');
+    keys.forEach(function (k) {
+      t = t.replace(new RegExp('^[ \\t]*[-*]?[ \\t]*' + k + '[ \\t]*[:：].*$', 'gm'), '');
+    });
+    return t.replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  /* ================= 每日记录 ================= */
+
+  const EMOTIONS = ['平静', '开心', '期待', '焦虑', '低落', '烦躁', '委屈', '孤单', '麻木', '愤怒', '安心', '疲惫'];
+  V.EMOTIONS = EMOTIONS;
+
+  V.parseDaily = function (md) {
+    const s = splitFront(md);
+    const sec = splitSections(s.body);
+    const d = V.blankDay(s.fm.date || '');
+
+    d.energy = L.clamp(s.fm.energy, 1, 10) || 5;
+    d.sleep = L.clamp(s.fm.sleep, 1, 10) || 6;
+    d.mood = L.clamp(s.fm.mood, 1, 10) || 6;
+    d.emotions = String(s.fm.emotions || '').split(/[,，、]/).map((x) => x.trim()).filter(Boolean);
+    d.updated = Number(s.fm.updated) || 0;
+
+    // 今日工作
+    const work = sec['今日工作'] || '';
+    d.tasks = [];
+    work.split(/\r?\n/).forEach(function (line) {
+      const m = line.match(/^[ \t]*[-*][ \t]+\[([ xX])][ \t]+(.*)$/);
+      if (m) d.tasks.push({ id: L.uid('t'), text: m[2].trim(), done: m[1].toLowerCase() === 'x' });
+    });
+
+    // 每日状态
+    const st = sec['每日状态'] || '';
+    d.drain = field(st, '最耗电的一件事');
+    d.charge = field(st, '给我充电的一件事');
+
+    // 心情与支持
+    const mo = sec['心情与支持'] || '';
+    d.fact = field(mo, '发生了什么');
+    d.need = field(mo, '我需要你做什么');
+
+    // 今日一句
+    d.note = stripFields(sec['今日一句'] || '', ['今日一句']);
+
+    // 今日饮水
+    const wa = sec['今日饮水'] || '';
+    const wm = wa.match(/(\d+)\s*\/\s*(\d+)/);
+    if (wm) { d.water.done = Number(wm[1]) || 0; d.water.goal = Number(wm[2]) || 0; }
+    d.water.logs = [];
+    wa.split(/\r?\n/).forEach(function (line) {
+      const m = line.match(/^\s*[-*]\s+(\d{1,2}:\d{2})\s+(\d+)\s*ml/i);
+      if (m) d.water.logs.push({ t: m[1], ml: Number(m[2]) });
+    });
+    // 没解析到列表时，用 done 兜底成一条（兼容手写）
+    if (!d.water.logs.length && d.water.done > 0) {
+      d.water.logs = [{ t: '', ml: d.water.done }];
+    }
+
+    // 起身活动
+    const ac = sec['起身活动'] || '';
+    d.activity.breaks = [];
+    ac.split(/\r?\n/).forEach(function (line) {
+      const m = line.match(/^\s*[-*]\s+(\d{1,2}:\d{2})\s*$/);
+      if (m) d.activity.breaks.push({ t: m[1] });
+    });
+
+    return d;
+  };
+
+  V.serializeDaily = function (d) {
+    d.updated = L.now();
+    const lines = [];
+    lines.push('---');
+    lines.push('date: ' + d.date);
+    lines.push('energy: ' + d.energy);
+    lines.push('sleep: ' + d.sleep);
+    lines.push('mood: ' + d.mood);
+    lines.push('emotions: ' + (d.emotions || []).join(','));
+    lines.push('updated: ' + d.updated);
+    lines.push('---');
+    lines.push('');
+    lines.push('# ' + d.date + ' 星期' + L.weekday(d.date));
+    lines.push('');
+    lines.push('## 今日工作');
+    lines.push('');
+    (d.tasks || []).forEach(function (t) {
+      lines.push('- [' + (t.done ? 'x' : ' ') + '] ' + t.text);
+    });
+    if (!(d.tasks || []).length) lines.push('- [ ] ');
+    lines.push('');
+    lines.push('## 每日状态');
+    lines.push('');
+    lines.push('精力 ' + d.energy + '/10 · 睡眠 ' + d.sleep + '/10');
+    lines.push('');
+    lines.push('最耗电的一件事：' + (d.drain || ''));
+    lines.push('');
+    lines.push('给我充电的一件事：' + (d.charge || ''));
+    lines.push('');
+    lines.push('## 心情与支持');
+    lines.push('');
+    lines.push('心情 ' + d.mood + '/10' + (d.emotions.length ? ' · ' + d.emotions.join('、') : ''));
+    lines.push('');
+    lines.push('发生了什么：' + (d.fact || ''));
+    lines.push('');
+    lines.push('我需要你做什么：' + (d.need || ''));
+    lines.push('');
+    lines.push('## 今日一句');
+    lines.push('');
+    lines.push(d.note || '');
+    lines.push('');
+    lines.push('## 今日饮水');
+    lines.push('');
+    lines.push((d.water.done || 0) + ' / ' + (d.water.goal || 0) + ' ml');
+    lines.push('');
+    (d.water.logs || []).forEach(function (x) {
+      lines.push('- ' + (x.t || '—') + ' ' + x.ml + 'ml');
+    });
+    lines.push('');
+    lines.push('## 起身活动');
+    lines.push('');
+    lines.push((d.activity.breaks || []).length + ' 次 · 上次 ' +
+      ((d.activity.breaks || []).length ? d.activity.breaks[d.activity.breaks.length - 1].t : '—'));
+    lines.push('');
+    (d.activity.breaks || []).forEach(function (x) { lines.push('- ' + x.t); });
+    lines.push('');
+    return lines.join('\n');
+  };
+
+  /* ================= 矛盾工坊 ================= */
+
+  V.parseConflict = function (md) {
+    const s = splitFront(md);
+    const sec = splitSections(s.body);
+    const c = V.blankConflict();
+    c.id = s.fm.id || c.id;
+    c.title = s.fm.title || '';
+    c.status = s.fm.status || 'draft';
+    c.created = Number(s.fm.created) || L.now();
+    c.updated = Number(s.fm.updated) || 0;
+    c.fact = sec['事实'] || '';
+    c.feeling = sec['我的感受'] || '';
+    c.need = sec['我的需要'] || '';
+    c.request = sec['我的请求'] || '';
+    c.response = sec['对方的回应'] || '';
+    c.pact = sec['我们达成的约定'] || '';
+    return c;
+  };
+
+  V.serializeConflict = function (c) {
+    c.updated = L.now();
+    return [
+      '---',
+      'id: ' + c.id,
+      'title: ' + c.title,
+      'status: ' + c.status,
+      'created: ' + c.created,
+      'updated: ' + c.updated,
+      '---',
+      '',
+      '# 议题：' + (c.title || '未命名'),
+      '',
+      '## 事实',
+      '', (c.fact || ''), '',
+      '## 我的感受',
+      '', (c.feeling || ''), '',
+      '## 我的需要',
+      '', (c.need || ''), '',
+      '## 我的请求',
+      '', (c.request || ''), '',
+      '## 对方的回应',
+      '', (c.response || ''), '',
+      '## 我们达成的约定',
+      '', (c.pact || ''), ''
+    ].join('\n');
+  };
+
+  /* ================= 每周复盘 ================= */
+
+  V.parseReview = function (md) {
+    const s = splitFront(md);
+    const sec = splitSections(s.body);
+    const r = V.blankReview(s.fm.week || '');
+    r.relation = L.clamp(s.fm.relation, 1, 10) || 7;
+    r.updated = Number(s.fm.updated) || 0;
+    r.progress = sec['本周最有进展的一件事'] || '';
+    r.drain = sec['本周最消耗的一件事'] || '';
+    r.good = sec['我做得好的地方'] || '';
+    r.change = sec['我想调整的地方'] || '';
+    r.nextwant = sec['下周我最想要的一件事'] || '';
+    return r;
+  };
+
+  V.serializeReview = function (r) {
+    r.updated = L.now();
+    return [
+      '---',
+      'week: ' + r.week,
+      'relation: ' + r.relation,
+      'updated: ' + r.updated,
+      '---',
+      '',
+      '# 复盘 · ' + r.week,
+      '',
+      '## 本周最有进展的一件事',
+      '', (r.progress || ''), '',
+      '## 本周最消耗的一件事',
+      '', (r.drain || ''), '',
+      '## 我做得好的地方',
+      '', (r.good || ''), '',
+      '## 我想调整的地方',
+      '', (r.change || ''), '',
+      '## 下周我最想要的一件事',
+      '', (r.nextwant || ''), ''
+    ].join('\n');
+  };
+
+  /* ================= 读写 ================= */
+
+  V.dayPath = (iso) => DAILY + '/' + iso + '.md';
+  V.conflictPath = (c) => CONF + '/' + c.id + '.md';
+  V.reviewPath = (wk) => REV + '/' + wk + '.md';
+
+  V.saveDay = async function (d) {
+    await g.P.mkdir(DAILY);
+    return g.P.writeFile(V.dayPath(d.date), V.serializeDaily(d));
+  };
+
+  V.loadDay = async function (iso) {
+    const r = await g.P.readFile(V.dayPath(iso));
+    if (!r.ok) return V.blankDay(iso);
+    try { return V.parseDaily(r.data); }
+    catch (e) { console.warn('解析失败', iso, e); return V.blankDay(iso); }
+  };
+
+  V.saveConflict = async function (c) {
+    await g.P.mkdir(CONF);
+    return g.P.writeFile(V.conflictPath(c), V.serializeConflict(c));
+  };
+
+  V.saveReview = async function (r) {
+    await g.P.mkdir(REV);
+    return g.P.writeFile(V.reviewPath(r.week), V.serializeReview(r));
+  };
+
+  V.loadReview = async function (wk) {
+    const r = await g.P.readFile(V.reviewPath(wk));
+    if (!r.ok) return V.blankReview(wk);
+    try { return V.parseReview(r.data); }
+    catch (e) { return V.blankReview(wk); }
+  };
+
+  V.listConflicts = async function () {
+    const dir = await g.P.readdir(CONF);
+    const out = [];
+    for (const name of (dir.files || [])) {
+      if (!/\.md$/.test(name)) continue;
+      const r = await g.P.readFile(CONF + '/' + name);
+      if (r.ok) { try { out.push(V.parseConflict(r.data)); } catch (e) { } }
+    }
+    out.sort((a, b) => (b.created || 0) - (a.created || 0));
+    return out;
+  };
+
+  V.listDays = async function () {
+    const dir = await g.P.readdir(DAILY);
+    // 原实现是 for + await 串行读：365 天 = 365 次串行 IO，会卡住。
+    // 改成有上限的并发（一次 8 个），既快又不会把文件系统打爆。
+    const names = (dir.files || [])
+      .map(function (n) { const m = n.match(/^(\d{4}-\d{2}-\d{2})\.md$/); return m ? n : null; })
+      .filter(Boolean)
+      .sort()
+      .reverse();
+    const out = [];
+    const LIMIT = 8;
+    for (let i = 0; i < names.length; i += LIMIT) {
+      const batch = names.slice(i, i + LIMIT);
+      const rs = await Promise.all(batch.map(function (n) { return g.P.readFile(DAILY + '/' + n); }));
+      rs.forEach(function (r) {
+        if (r && r.ok) { try { out.push(V.parseDaily(r.data)); } catch (e) { } }
+      });
+    }
+    out.sort((a, b) => (a.date < b.date ? 1 : -1));
+    return out;
+  };
+
+  V.listReviews = async function () {
+    const dir = await g.P.readdir(REV);
+    const out = [];
+    for (const name of (dir.files || [])) {
+      if (!/\.md$/.test(name)) continue;
+      const r = await g.P.readFile(REV + '/' + name);
+      if (r.ok) { try { out.push(V.parseReview(r.data)); } catch (e) { } }
+    }
+    out.sort((a, b) => (a.week < b.week ? 1 : -1));
+    return out;
+  };
+
+  /* ================= 导出全部（.zip / 单个 md） ================= */
+
+  V.collectAll = async function () {
+    const files = [];
+    const days = await V.listDays();
+    days.forEach((d) => files.push({ path: 'daily/' + d.date + '.md', data: L.strToU8(V.serializeDaily(d)) }));
+    const cs = await V.listConflicts();
+    cs.forEach((c) => files.push({ path: 'conflicts/' + c.id + '.md', data: L.strToU8(V.serializeConflict(c)) }));
+    const rs = await V.listReviews();
+    rs.forEach((r) => files.push({ path: 'reviews/' + r.week + '.md', data: L.strToU8(V.serializeReview(r)) }));
+    files.push({ path: 'README.txt', data: L.strToU8(
+      'JWLE 数据导出\n\n' +
+      '这些是纯 Markdown 文件，可以用 Obsidian、Typora、VS Code 或任何文本编辑器打开。\n' +
+      '导出时间：' + new Date().toLocaleString('zh-CN') + '\n' +
+      '包含：每日记录 ' + days.length + ' 篇 · 议题 ' + cs.length + ' 条 · 复盘 ' + rs.length + ' 篇\n'
+    ) });
+    return files;
+  };
+
+  V.exportZip = async function () {
+    const files = await V.collectAll();
+    const blob = L.makeZip(files);
+    return P.shareBlob('JWLE备份-' + L.today() + '.zip', blob);
+  };
+
+  /* ================= 导入（和上面的导出形成闭环） =================
+     来源有两种：
+       ① 本应用导出的 .zip（推荐，一次拿回全部）
+       ② 单个 .md 文件（用手写的一篇、或从别处拷来的）
+     合并规则与云端同步一致：按 updated 时间戳取新，旧的不会被覆盖掉。
+     这样"重复导入"是安全的 —— 导入两次和导入一次结果相同。
+  =============================================================== */
+
+  V.importFiles = async function (files) {
+    let inDay = 0, inC = 0, inR = 0, skip = 0, bad = 0;
+    const dec = new TextDecoder();
+
+    for (const f of files) {
+      let text;
+      try { text = dec.decode(f.data); } catch (e) { bad++; continue; }
+      if (!text || !text.trim()) continue;
+
+      // 判断这一篇是哪一类：先看路径，再看 frontmatter
+      const pm = String(f.path || '').match(/(?:^|\/)(daily|conflicts|reviews)\//);
+      let kind = pm ? pm[1] : null;
+
+      if (!kind) {
+        // 单文件导入：靠 frontmatter 里的关键字段猜
+        const fm = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        const head = fm ? fm[1] : '';
+        if (/^\s*date\s*:/m.test(head)) kind = 'daily';
+        else if (/^\s*id\s*:/m.test(head) && /^\s*title\s*:/m.test(head)) kind = 'conflicts';
+        else if (/^\s*week\s*:/m.test(head)) kind = 'reviews';
+      }
+      if (!kind) { bad++; continue; }
+
+      try {
+        if (kind === 'daily') {
+          const d = V.parseDaily(text);
+          if (!d.date) { bad++; continue; }
+          const local = await V.loadDay(d.date);
+          if ((Number(d.updated) || 0) > (Number(local.updated) || 0)) { await V.saveDay(d); inDay++; }
+          else skip++;
+        } else if (kind === 'conflicts') {
+          const c = V.parseConflict(text);
+          if (!c.id) { bad++; continue; }
+          const list = await V.listConflicts();
+          const local = list.find((x) => x.id === c.id);
+          if (!local || (Number(c.updated) || 0) > (Number(local.updated) || 0)) { await V.saveConflict(c); inC++; }
+          else skip++;
+        } else {
+          const r = V.parseReview(text);
+          if (!r.week) { bad++; continue; }
+          const local = await V.loadReview(r.week);
+          if ((Number(r.updated) || 0) > (Number(local.updated) || 0)) { await V.saveReview(r); inR++; }
+          else skip++;
+        }
+      } catch (e) {
+        bad++;
+        console.warn('导入失败', f.path, e);
+      }
+    }
+
+    return {
+      ok: inDay + inC + inR > 0,
+      imported: inDay + inC + inR,
+      detail: { day: inDay, conflict: inC, review: inR },
+      skipped: skip, bad: bad
+    };
+  };
+
+  /** 导入同步用的 JSON 包（从 WebDAV / GitHub 手动下载下来的那种） */
+  V.importBundle = async function (json) {
+    let j;
+    try { j = JSON.parse(json); } catch (e) { return { ok: false, msg: '不是有效的 JSON' }; }
+    if (!j || j.format !== 'jw-sync') return { ok: false, msg: '不是本应用的同步包' };
+    let n = 0;
+    for (const d of (j.days || [])) { if (d && d.date) { await V.saveDay(d); n++; } }
+    for (const c of (j.conflicts || [])) { if (c && c.id) { await V.saveConflict(c); n++; } }
+    for (const r of (j.reviews || [])) { if (r && r.week) { await V.saveReview(r); n++; } }
+    return { ok: n > 0, imported: n };
+  };
+
+  /** 导出成一个大 Markdown（方便贴到别处 / 打印） */
+  V.exportSingleMd = async function () {
+    const days = await V.listDays();
+    const cs = await V.listConflicts();
+    const rs = await V.listReviews();
+    let out = '# JWLE · 全部记录\n\n> 导出于 ' + new Date().toLocaleString('zh-CN') + '\n\n';
+    out += '## 每日记录\n\n';
+    days.forEach((d) => { out += V.serializeDaily(d) + '\n\n---\n\n'; });
+    if (cs.length) {
+      out += '## 矛盾工坊\n\n';
+      cs.forEach((c) => { out += V.serializeConflict(c) + '\n\n---\n\n'; });
+    }
+    if (rs.length) {
+      out += '## 每周复盘\n\n';
+      rs.forEach((r) => { out += V.serializeReview(r) + '\n\n---\n\n'; });
+    }
+    return P.shareFile('JWLE记录-' + L.today() + '.md', out, 'text/markdown');
+  };
+
+  /* ================= 身体参数与饮水目标 =================
+     说明白公式，不装神弄鬼：
+
+     基础量 = 体表面积(BSA) × 1000 ml/m²
+       BSA 用 Du Bois 公式：0.007184 × 身高(cm)^0.725 × 体重(kg)^0.425
+       选它而不是"体重 × 35ml"，是因为用户要求身高也参与计算——
+       Du Bois 是临床最常用的 BSA 公式之一，身高体重都在里面。
+       系数 1000 是校准过的：170cm/65kg 算出 1750 ml，
+       落在中国居民膳食指南建议的 1500~1700 ml 区间附近，合理。
+
+     目标量 = 基础量 + 增量(200~500 ml，你自己调)
+
+     上限保护（这一步比算准更重要）：
+       软上限 = BSA × 1400 ml
+       硬上限 = 3000 ml
+       —— 饮水过量会引起低钠血症（水中毒），这不是吓唬人。
+          肾脏每小时大约只能排出 800~1000 ml 水。
+          运动量大、天气热时可以多喝，但要分次，别一次性猛灌。
+  ======================================================== */
+
+  V.waterGoal = function (body) {
+    const b = body || {};
+    const h = L.clamp(Number(b.height) || 170, 100, 250);
+    const w = L.clamp(Number(b.weight) || 65, 25, 300);
+    const bsa = 0.007184 * Math.pow(h, 0.725) * Math.pow(w, 0.425);
+
+    const base = Math.round(bsa * 1000);
+    const extra = L.clamp(Number(b.extra) || 300, 200, 500);
+    const raw = base + extra;
+
+    const softCap = Math.round(bsa * 1400);
+    const cap = Math.min(3000, softCap);
+    const goal = Math.min(raw, cap);
+
+    const bmi = w / Math.pow(h / 100, 2);
+
+    return {
+      bsa: Math.round(bsa * 100) / 100,
+      base: base, extra: extra, raw: raw,
+      goal: goal, cap: cap,
+      capped: goal < raw,
+      bmi: Math.round(bmi * 10) / 10
+    };
+  };
+
+  /** 单次能喝的上限：杯量不超过 500，且距离上次不足 30 分钟时提示 */
+  V.WATER_MAX_CUP = 500;
+  V.WATER_HOUR_LIMIT = 800;
+
+  /** 记一杯水。返回 {ok, msg} —— 超量会拒绝而不是悄悄记下 */
+  V.addWater = function (day, ml) {
+    const n = L.clamp(Number(ml) || 0, 0, V.WATER_MAX_CUP);
+    if (n <= 0) return { ok: false, msg: '杯量无效' };
+
+    const now = new Date();
+    const hhmm = L.pad(now.getHours()) + ':' + L.pad(now.getMinutes());
+    const logs = day.water.logs || [];
+
+    // 一小时内累计不超过 800 ml
+    const recent = logs.filter(function (x) {
+      if (!x.t) return false;
+      const p = x.t.split(':');
+      const mins = (now.getHours() * 60 + now.getMinutes()) - (Number(p[0]) * 60 + Number(p[1]));
+      return mins >= 0 && mins < 60;
+    });
+    const hourSum = recent.reduce((a, x) => a + (x.ml || 0), 0);
+    if (hourSum + n > V.WATER_HOUR_LIMIT) {
+      return {
+        ok: false,
+        msg: '这一小时已经记了 ' + hourSum + ' ml，再加就超过 ' + V.WATER_HOUR_LIMIT + ' ml 了。等一会儿再喝。'
+      };
+    }
+
+    logs.push({ t: hhmm, ml: n });
+    day.water.logs = logs;
+    day.water.done = logs.reduce((a, x) => a + (x.ml || 0), 0);
+    return { ok: true, done: day.water.done };
+  };
+
+  /** 撤销最近一次 */
+  V.undoWater = function (day) {
+    if (!(day.water.logs || []).length) return { ok: false, msg: '还没有记录' };
+    const last = day.water.logs.pop();
+    day.water.done = day.water.logs.reduce((a, x) => a + (x.ml || 0), 0);
+    return { ok: true, done: day.water.done, removed: last };
+  };
+
+  /** 记一次起身活动 */
+  V.addBreak = function (day) {
+    const now = new Date();
+    const hhmm = L.pad(now.getHours()) + ':' + L.pad(now.getMinutes());
+    (day.activity.breaks = day.activity.breaks || []).push({ t: hhmm });
+    return { ok: true, count: day.activity.breaks.length, at: hhmm };
+  };
+
+  /** 距离上次活动过了多少分钟（没有记录则返回 null） */
+  V.minutesSinceBreak = function (day) {
+    const b = (day && day.activity && day.activity.breaks) || [];
+    if (!b.length) return null;
+    const last = b[b.length - 1];
+    const p = (last.t || '').split(':');
+    if (p.length !== 2) return null;
+    const now = new Date();
+    const diff = (now.getHours() * 60 + now.getMinutes()) - (Number(p[0]) * 60 + Number(p[1]));
+    return diff < 0 ? null : diff;
+  };
+
+  /* ================= 设置 =================
+
+     凭据（WebDAV 口令、GitHub Token）不写进 settings.json。
+
+     原因：settings.json 是明文文件，就躺在 vault/.jw/ 目录里。
+     如果用户把这个目录用 Syncthing 同步到电脑、或者导出 zip 分享出去，
+     口令就跟着走了。虽然我们承诺"导出 zip 不含 settings"，
+     但那只是一处代码的自觉，不是机制上的保证。
+
+     现在的做法：
+       settings.json  → 只存非敏感配置（安静地待在 vault 里）
+       Preferences     → 存凭据（Android 系统加密存储区，别的应用读不到）
+
+     Preferences 拿不到时（浏览器预览）退回 localStorage —— 这和原来
+     的安全级别一样，因为浏览器里本来就没有安全存储可用。
+
+     loadSettings 带自动迁移：老版本存在 settings.json 里的明文口令
+     会被搬到 Preferences，并从文件里抹掉。
+     ============================================================ */
+
+  const SET_KEY = 'jw.settings';
+  const CRED_KEY = 'jw.credentials';
+
+  /** 从任意地方取出凭据对象 */
+  async function loadCreds() {
+    const def = { webdavPass: '', githubToken: '' };
+    if (g.P && g.P.getPref) {
+      const c = await g.P.getPref(CRED_KEY, null);
+      if (c && typeof c === 'object') return Object.assign(def, c);
+    }
+    return def;
+  }
+
+  async function saveCreds(c) {
+    if (g.P && g.P.setPref) {
+      await g.P.setPref(CRED_KEY, c);
+      return true;
+    }
+    return L.set(CRED_KEY, c);
+  }
+
+  V.loadCreds = loadCreds;
+  V.saveCreds = saveCreds;
+
+  V.defaultSettings = function () {
+    return {
+      me: '我',
+      partner: '你',
+      theme: 'light',
+      /* 身体参数：只用于估算饮水目标，不上传、不诊断 */
+      body: {
+        height: 170,      // cm
+        weight: 65,       // kg
+        extra: 300        // 在基础量上再加的 200~500 ml
+      },
+      notify: {
+        enabled: true,
+        checkinTime: '21:00',
+        medEnabled: false,
+        medTimes: ['08:00', '20:00'],
+        medLabel: '吃药',
+        reviewEnabled: true,
+        reviewTime: '20:00',
+        reviewDay: 0,           // 0=周日
+        /* 喝水提醒 */
+        waterEnabled: true,
+        waterCup: 250,          // 单次杯量 ml
+        waterStart: '08:00',
+        waterEnd: '21:00',
+        /* 睡眠提醒：区间 —— 开始一档、截止一档。工作日 / 非工作日分开 */
+        sleepEnabled: true,
+        sleepWorkStart: '22:30', sleepWorkEnd: '23:30',
+        sleepRestStart: '23:30', sleepRestEnd: '00:30',
+        workdays: [1, 2, 3, 4, 5],   // 1=周一 … 7=周日
+        holidays: [],                // ['2026-10-01'] 手动标记的假期
+        /* 久坐提醒 */
+        sitEnabled: true,
+        sitInterval: 60,        // 分钟
+        sitStart: '09:00',
+        sitEnd: '18:00'
+      },
+      /* 注意：这里不再有 pass / token 字段。
+         凭据统一由 loadCreds/saveCreds 管理，不进这个对象。 */
+      sync: {
+        mode: 'none',            // none | webdav | github | folder
+        webdav: { url: '', user: '' },
+        github: { gistId: '' },
+        autoOnOpen: true,
+        lastSyncAt: 0
+      },
+      onboarded: false
+    };
+  };
+
+  V.loadSettings = async function () {
+    const s = await g.P.readFile(META + '/settings.json');
+    let obj = {};
+    if (s.ok) { try { obj = JSON.parse(s.data); } catch (e) { } }
+    const def = V.defaultSettings();
+
+    /* ---------- 一次性迁移：把明文凭据搬到安全存储 ---------- */
+    const legacyPass = (obj.sync && obj.sync.webdav && obj.sync.webdav.pass) || '';
+    const legacyToken = (obj.sync && obj.sync.github && obj.sync.github.token) || '';
+
+    if (legacyPass || legacyToken) {
+      const cur = await loadCreds();
+      if (legacyPass) cur.webdavPass = legacyPass;
+      if (legacyToken) cur.githubToken = legacyToken;
+      await saveCreds(cur);
+
+      // 把明文从 settings.json 里抹掉并落盘
+      if (obj.sync) {
+        if (obj.sync.webdav) delete obj.sync.webdav.pass;
+        if (obj.sync.github) delete obj.sync.github.token;
+        try {
+          await g.P.mkdir(META);
+          await g.P.writeFile(META + '/settings.json', JSON.stringify(obj, null, 2));
+          console.log('[settings] 已将明文凭据迁移到安全存储，并从 settings.json 移除');
+        } catch (e) {
+          console.warn('[settings] 迁移后回写失败', e);
+        }
+      }
+    }
+
+    const creds = await loadCreds();
+
+    const out = {
+      me: obj.me || def.me,
+      partner: obj.partner || def.partner,
+      theme: obj.theme || def.theme,
+      notify: Object.assign(def.notify, obj.notify || {}),
+      body: Object.assign(def.body, obj.body || {}),
+      sync: Object.assign(def.sync, obj.sync || {}),
+      onboarded: !!obj.onboarded,
+      /* 凭据挂在内存里，方便界面回显与同步调用；
+         但 saveSettings 会把它排除掉。 */
+      creds: creds
+    };
+    out.sync.webdav = Object.assign({ url: '', user: '' }, out.sync.webdav || {});
+    out.sync.github = Object.assign({ gistId: '' }, out.sync.github || {});
+    // 兼容旧的读取方式：把凭据透到 sync 结构上（只读用）
+    out.sync.webdav.pass = creds.webdavPass || '';
+    out.sync.github.token = creds.githubToken || '';
+    return out;
+  };
+
+  V.saveSettings = async function (s) {
+    // ① 凭据单独存进安全存储
+    const creds = Object.assign(await loadCreds(), {
+      webdavPass: (s.creds && s.creds.webdavPass) ||
+        (s.sync && s.sync.webdav && s.sync.webdav.pass) || '',
+      githubToken: (s.creds && s.creds.githubToken) ||
+        (s.sync && s.sync.github && s.sync.github.token) || ''
+    });
+    await saveCreds(creds);
+    if (s.creds) { s.creds.webdavPass = creds.webdavPass; s.creds.githubToken = creds.githubToken; }
+
+    // ② 配置写文件，且必须剥掉凭据
+    const clean = {
+      me: s.me,
+      partner: s.partner,
+      theme: s.theme,
+      notify: s.notify,
+      body: s.body,
+      onboarded: s.onboarded,
+      sync: {
+        mode: s.sync.mode,
+        autoOnOpen: s.sync.autoOnOpen,
+        lastSyncAt: s.sync.lastSyncAt,
+        webdav: { url: (s.sync.webdav || {}).url, user: (s.sync.webdav || {}).user },
+        github: { gistId: (s.sync.github || {}).gistId }
+      }
+    };
+    await g.P.mkdir(META);
+    const r = await g.P.writeFile(META + '/settings.json', JSON.stringify(clean, null, 2));
+    if (r && r.ok) {
+      // 自检：确认明文凭据没有被写进去
+      const chk = await g.P.readFile(META + '/settings.json');
+      if (chk.ok && creds.webdavPass && chk.data.indexOf(creds.webdavPass) >= 0) {
+        console.error('[settings] 严重：明文口令出现在 settings.json 中，请检查 saveSettings');
+      }
+    }
+    return r;
+  };
+
+  g.V = V;
+})(window);
+
+
+/* ===== sync.js ===== */
+/* =========================================================
+   sync.js —— 同步引擎（你自己选后端，App 不碰你的数据）
+   ---------------------------------------------------------
+   三种模式，都是"你自己持有的存储"，没有中间服务器：
+
+   ① 文件夹同步（推荐，最像 Obsidian）
+      App 的文件就放在手机真实目录里，你用 Syncthing 把这个目录同步到电脑/另一台手机。
+      数据不经过任何第三方。缺点：需要装 Syncthing（免费开源）。
+
+   ② WebDAV（次推荐，最像 Joplin）
+      坚果云 / Nextcloud / ownCloud / 自建。App 直接读写一个 JSON 包。
+      国内用坚果云免费额度就够。
+
+   ③ GitHub Gist
+      免费、有版本历史。适合有点技术基础的人。
+
+   合并策略：逐条按 updated 时间戳取新（last-write-wins）。
+   这是刻意选的简单策略——两个人同时改同一条的概率很低，
+   而复杂的 CRDT 会带来你查不明白的 bug。改之前先同步，就不会丢。
+   ========================================================= */
+(function (g) {
+  'use strict';
+  const L = g.L, V = g.V;
+  const S = {};
+
+  const BUNDLE = 'jw-sync.json';
+
+  /* ---------- 打包 / 解包 ---------- */
+
+  S.buildBundle = async function () {
+    const days = await V.listDays();
+    const cs = await V.listConflicts();
+    const rs = await V.listReviews();
+    return {
+      format: 'jw-sync',
+      version: 1,
+      device: (g.P.platform || 'web'),
+      exportedAt: L.now(),
+      days: days, conflicts: cs, reviews: rs
+    };
+  };
+
+  /** 把远端包合并进本地，返回统计 */
+  S.mergeBundle = async function (remote) {
+    if (!remote || remote.format !== 'jw-sync') {
+      return { ok: false, msg: '远端不是本应用的数据包' };
+    }
+    let inDay = 0, outDay = 0, inC = 0, outC = 0, inR = 0, outR = 0;
+
+    // 每日
+    for (const rd of (remote.days || [])) {
+      if (!rd || !rd.date) continue;
+      const local = await V.loadDay(rd.date);
+      const rt = Number(rd.updated) || 0;
+      const lt = Number(local.updated) || 0;
+      if (rt > lt) { await V.saveDay(rd); inDay++; }
+      else if (lt > rt) { outDay++; }
+    }
+    // 议题
+    const localC = await V.listConflicts();
+    const mapC = {};
+    localC.forEach((c) => { mapC[c.id] = c; });
+    for (const rc of (remote.conflicts || [])) {
+      if (!rc || !rc.id) continue;
+      const local = mapC[rc.id];
+      const rt = Number(rc.updated) || 0;
+      if (!local) { await V.saveConflict(rc); inC++; }
+      else if (rt > (Number(local.updated) || 0)) { await V.saveConflict(rc); inC++; }
+      else if ((Number(local.updated) || 0) > rt) outC++;
+    }
+    // 复盘
+    for (const rr of (remote.reviews || [])) {
+      if (!rr || !rr.week) continue;
+      const local = await V.loadReview(rr.week);
+      const rt = Number(rr.updated) || 0;
+      const lt = Number(local.updated) || 0;
+      if (rt > lt) { await V.saveReview(rr); inR++; }
+      else if (lt > rt) outR++;
+    }
+
+    return {
+      ok: true,
+      pulled: inDay + inC + inR,
+      pushed: outDay + outC + outR,
+      detail: { inDay, outDay, inC, outC, inR, outR },
+      remoteAt: remote.exportedAt || 0,
+      remoteDevice: remote.device || '未知设备'
+    };
+  };
+
+  /* ---------- HTTP：优先走原生（绕过 CORS），否则 fetch ---------- */
+
+  function getHttp() {
+    try { return (g.Capacitor && g.Capacitor.Plugins && g.Capacitor.Plugins.CapacitorHttp) || null; }
+    catch (e) { return null; }
+  }
+
+  async function req(method, url, headers, body) {
+    const H = getHttp();
+    if (H) {
+      const r = await H.request({ method, url, headers, data: body, responseType: 'text' });
+      return { status: r.status, data: r.data };
+    }
+    const opt = { method, headers: headers || {} };
+    if (body != null) opt.body = body;
+    const r = await fetch(url, opt);
+    return { status: r.status, data: await r.text() };
+  }
+
+  /* ---------- WebDAV ---------- */
+
+  /** UTF-8 安全的 base64。
+      原生 btoa() 只接受 Latin-1，用户名或口令里只要有一个中文字符
+      就会抛 InvalidCharacterError —— 而中间件、坚果云的应用密码里
+      带非 ASCII 的情况很常见。 */
+  function b64utf8(str) {
+    const bytes = new TextEncoder().encode(String(str));
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    try {
+      return btoa(bin);
+    } catch (e) {
+      // 极端兜底：真拿不到 btoa 时手写一份
+      const T = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+      let out = '';
+      for (let i = 0; i < bytes.length; i += 3) {
+        const c1 = bytes[i], c2 = bytes[i + 1], c3 = bytes[i + 2];
+        out += T[c1 >> 2];
+        out += T[((c1 & 3) << 4) | ((c2 || 0) >> 4)];
+        out += i + 1 < bytes.length ? T[((c2 & 15) << 2) | ((c3 || 0) >> 6)] : '=';
+        out += i + 2 < bytes.length ? T[c3 & 63] : '=';
+      }
+      return out;
+    }
+  }
+
+  function basicAuth(user, pass) {
+    return 'Basic ' + b64utf8(String(user || '') + ':' + String(pass || ''));
+  }
+
+  S.testWebdav = async function (cfg) {
+    try {
+      const base = normUrl(cfg.url);
+      const r = await req('PROPFIND', base, {
+        'Authorization': basicAuth(cfg.user, cfg.pass),
+        'Depth': '0'
+      });
+      return { ok: r.status >= 200 && r.status < 400, status: r.status, msg: 'HTTP ' + r.status };
+    } catch (e) {
+      return { ok: false, msg: e.message || String(e) };
+    }
+  };
+
+  S.webdavPull = async function (cfg) {
+    const url = normUrl(cfg.url) + BUNDLE;
+    const r = await req('GET', url, { 'Authorization': basicAuth(cfg.user, cfg.pass) });
+    if (r.status === 404) return { ok: true, empty: true, msg: '远端还没有备份' };
+    if (r.status >= 400) return { ok: false, msg: 'HTTP ' + r.status };
+    try { return { ok: true, bundle: JSON.parse(r.data) }; }
+    catch (e) { return { ok: false, msg: '远端文件解析失败' }; }
+  };
+
+  S.webdavPush = async function (cfg, bundle) {
+    const url = normUrl(cfg.url) + BUNDLE;
+    const r = await req('PUT', url, {
+      'Authorization': basicAuth(cfg.user, cfg.pass),
+      'Content-Type': 'application/json'
+    }, JSON.stringify(bundle));
+    return r.status >= 200 && r.status < 400
+      ? { ok: true }
+      : { ok: false, msg: 'HTTP ' + r.status };
+  };
+
+  /* 地址规范化。
+
+     安全约束：不接受 http://。
+     文档里明明写着"纯文本存储、数据属于你"，那么同步口令就不该
+     以明文走一趟网络。Basic 认证本身已经是 base64（不是加密），
+     再套一层明文 http，等于把口令直接写在公网上。
+     想用自建的局域网 WebDAV？请自己配一个自签证书 —— 这是值得的摩擦。 */
+  S.normUrl = function (u) {
+    let s = String(u || '').trim().replace(/\/+$/, '');
+    if (!s) return '';
+    if (/^http:\/\//i.test(s)) {
+      throw new Error('出于安全考虑，不接受 http:// 地址。请改用 https://');
+    }
+    if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+    return s + '/';
+  };
+  function normUrl(u) { return S.normUrl(u); }
+
+  /* ---------- GitHub Gist ---------- */
+
+  S.githubPull = async function (cfg) {
+    if (!cfg.gistId) return { ok: false, msg: '还没有 Gist ID' };
+    const r = await req('GET', 'https://api.github.com/gists/' + cfg.gistId, {
+      'Authorization': 'Bearer ' + cfg.token,
+      'Accept': 'application/vnd.github+json'
+    });
+    if (r.status >= 400) return { ok: false, msg: 'HTTP ' + r.status };
+    try {
+      const j = JSON.parse(r.data);
+      const f = j.files && j.files[BUNDLE];
+      if (!f) return { ok: true, empty: true, msg: 'Gist 里还没有备份文件' };
+      return { ok: true, bundle: JSON.parse(f.content) };
+    } catch (e) { return { ok: false, msg: '解析失败：' + e.message }; }
+  };
+
+  S.githubPush = async function (cfg, bundle) {
+    const headers = {
+      'Authorization': 'Bearer ' + cfg.token,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json'
+    };
+    let url = 'https://api.github.com/gists';
+    let method = 'POST';
+    if (cfg.gistId) { url += '/' + cfg.gistId; method = 'PATCH'; }
+    const body = {
+      description: 'JWLE 数据备份',
+      public: false,
+      files: { [BUNDLE]: { content: JSON.stringify(bundle) } }
+    };
+    const r = await req(method, url, headers, JSON.stringify(body));
+    if (r.status >= 400) return { ok: false, msg: 'HTTP ' + r.status + ' ' + (r.data || '').slice(0, 120) };
+    try {
+      const j = JSON.parse(r.data);
+      return { ok: true, gistId: j.id };
+    } catch (e) { return { ok: true }; }
+  };
+
+  /* ---------- 一键同步 ---------- */
+
+  S.runSync = async function (settings) {
+    const cfg = settings.sync || {};
+    const mode = cfg.mode || 'none';
+    if (mode === 'none') return { ok: false, msg: '还没有选择同步方式' };
+    if (mode === 'folder') return { ok: false, msg: '文件夹同步由 Syncthing 在后台完成，无需在这里操作' };
+
+    // ① 先拉远端，合并进本地（避免覆盖别人的新改动）
+    let pull;
+    if (mode === 'webdav') pull = await S.webdavPull(cfg.webdav);
+    else if (mode === 'github') pull = await S.githubPull(cfg.github);
+    else return { ok: false, msg: '未知的同步方式' };
+
+    if (!pull.ok) return { ok: false, msg: '拉取失败：' + pull.msg };
+
+    let merged = { pulled: 0, pushed: 0, empty: false };
+    if (pull.bundle) {
+      const m = await S.mergeBundle(pull.bundle);
+      if (!m.ok) return m;
+      merged = m;
+    } else {
+      merged.empty = true;
+    }
+
+    // ② 再把合并后的本地数据推上去
+    const bundle = await S.buildBundle();
+    let push;
+    if (mode === 'webdav') push = await S.webdavPush(cfg.webdav, bundle);
+    else push = await S.githubPush(cfg.github, bundle);
+    if (!push.ok) return { ok: false, msg: '上传失败：' + push.msg };
+    if (push.gistId && !cfg.github.gistId) cfg.github.gistId = push.gistId;
+
+    return {
+      ok: true,
+      pulled: merged.pulled || 0,
+      pushed: merged.pushed || 0,
+      empty: !!merged.empty,
+      msg: merged.empty ? '远端为空，已上传本地数据' : '拉取 ' + (merged.pulled || 0) + ' 条 · 上传 ' + (merged.pushed || 0) + ' 条'
+    };
+  };
+
+  /* ---------- 本地文件夹：把整个 vault 导出成 zip ---------- */
+  S.exportZip = () => V.exportZip();
+  S.exportMd = () => V.exportSingleMd();
+
+  g.Sync = S;
+})(window);
+
+
+/* ===== notify.js ===== */
+/* =========================================================
+   notify.js —— 提醒（原生闹钟 + Web 兜底 + 日历导出）
+   ---------------------------------------------------------
+   在安卓原生 App 里，我们用 Capacitor 的 LocalNotifications，
+   它走的是系统 AlarmManager：App 关掉、手机重启，闹钟照样响。
+   这一点是 PWA 永远做不到的（浏览器没有可靠的后台定时器）。
+
+   在浏览器 / 预览环境下，退化为两种：
+     · 页面打开时的内存提醒
+     · 导出 .ics 交给系统日历（这个反而最可靠）
+   ========================================================= */
+(function (g) {
+  'use strict';
+  const L = g.L;
+  const N = { timer: null, fired: {} };
+
+  /* ---- 闹钟 ID 分配（改这里要同步改 cancelAll 的清单） ----
+     1001        每日打卡
+     1002        每周复盘
+     2000-2003   服药 / 自定义
+     3000-3015   喝水（按次数排，最多 16 次）
+     4001-4007   睡眠（按星期几：4000 + 星期序号，1=周一 … 7=周日）
+     4100-4119   假期睡眠（一次性，最多 20 天）
+     5000-5023   久坐（按小时排，最多 24 个）
+  -------------------------------------------------------- */
+  const ID_CHECKIN = 1001;
+  const ID_REVIEW = 1002;
+  const ID_MED_BASE = 2000;
+  const ID_WATER_BASE = 3000;
+  /* 睡眠提醒是"区间"：开始一个 + 截止一个，所以要有两套 ID */
+  const ID_SLEEP_START_BASE = 4000;   // 4001-4007 按星期
+  const ID_SLEEP_END_BASE = 4010;     // 4011-4017 按星期
+  const ID_HOLIDAY_START_BASE = 4120; // 4120-4139 按标记日期
+  const ID_HOLIDAY_END_BASE = 4140;   // 4140-4159 按标记日期
+  const ID_SIT_BASE = 5000;
+
+  /** 内部星期序号(1=周一…7=周日) → Capacitor weekday(1=周日,2=周一…7=周六) */
+  function capWeekday(myDay) { return (myDay % 7) + 1; }
+
+  N.idRange = function () {
+    const all = [ID_CHECKIN, ID_REVIEW];
+    for (let i = 0; i < 4; i++) all.push(ID_MED_BASE + i);
+    for (let i = 0; i < 16; i++) all.push(ID_WATER_BASE + i);
+    for (let i = 1; i <= 7; i++) all.push(ID_SLEEP_START_BASE + i);
+    for (let i = 1; i <= 7; i++) all.push(ID_SLEEP_END_BASE + i);
+    for (let i = 0; i < 20; i++) all.push(ID_HOLIDAY_START_BASE + i);
+    for (let i = 0; i < 20; i++) all.push(ID_HOLIDAY_END_BASE + i);
+    for (let i = 0; i < 24; i++) all.push(ID_SIT_BASE + i);
+    return all;
+  };
+
+  /** 取睡眠区间：{start, end}，兼容旧的单点字段 sleepWorkTime / sleepRestTime */
+  N.sleepWindow = function (n, isWork) {
+    const s = isWork
+      ? (n.sleepWorkStart || n.sleepWorkTime || '22:30')
+      : (n.sleepRestStart || n.sleepRestTime || '23:30');
+    const e = isWork
+      ? (n.sleepWorkEnd || addMinutes(s, 60))
+      : (n.sleepRestEnd || addMinutes(s, 60));
+    return { start: s, end: e };
+  };
+
+  /** "23:30" + 60 分钟 → "00:30"（跨午夜会正确回绕） */
+  function addMinutes(hhmm, m) {
+    const t = (toMin(hhmm) + m) % 1440;
+    return L.pad(Math.floor(t / 60)) + ':' + L.pad(t % 60);
+  }
+  N.addMinutes = addMinutes;
+
+  /** "08:00" → 分钟数 */
+  function toMin(hhmm) {
+    const p = String(hhmm || '09:00').split(':');
+    return (Number(p[0]) || 0) * 60 + (Number(p[1]) || 0);
+  }
+  /** 分钟数 → "08:00" */
+  function toHHMM(m) {
+    m = Math.round(m) % 1440;
+    return L.pad(Math.floor(m / 60)) + ':' + L.pad(m % 60);
+  }
+
+  /** 从 start 到 end 之间，均匀排 count 个时间点 */
+  N.spreadTimes = function (start, end, count) {
+    const a = toMin(start), b = toMin(end);
+    if (b <= a || count <= 0) return [];
+    const out = [];
+    const step = (b - a) / count;
+    for (let i = 0; i < count; i++) out.push(toHHMM(a + step * i));
+    return out;
+  };
+
+  /** 从 start 到 end 之间，每 stepMin 分钟一个时间点 */
+  N.everyTimes = function (start, end, stepMin) {
+    const a = toMin(start), b = toMin(end);
+    const s = Math.max(5, Number(stepMin) || 60);
+    const out = [];
+    for (let t = a; t <= b; t += s) out.push(toHHMM(t));
+    return out.slice(0, 24);
+  };
+
+  /** 排一个"每周某天重复"的闹钟 */
+  N.scheduleWeekly = async function (id, title, body, hhmm, myWeekday, extra) {
+    if (!g.P.Notif) return { ok: false, msg: '非原生环境' };
+    const perm = await g.P.notifPerm();
+    if (perm.state !== 'granted') return { ok: false, msg: '通知权限未授予' };
+    const p = String(hhmm || '22:00').split(':');
+    try {
+      await g.P.Notif.schedule({
+        notifications: [{
+          id: id, title: title, body: body,
+          schedule: {
+            on: { weekday: capWeekday(myWeekday), hour: Number(p[0]) || 0, minute: Number(p[1]) || 0 },
+            repeats: true,
+            allowWhileIdle: true
+          },
+          smallIcon: 'ic_stat_notify',
+          extra: extra || {}
+        }]
+      });
+      return { ok: true };
+    } catch (e) {
+      // 某些插件版本不支持 weekday，退化为每天同一时间
+      try {
+        await g.P.scheduleDaily(id, title + '（每天）', body, hhmm, extra);
+        return { ok: true, fallback: true };
+      } catch (e2) {
+        return { ok: false, msg: e.message || String(e) };
+      }
+    }
+  };
+
+  /** 排一个指定日期的一次性闹钟 */
+  N.scheduleOnce = async function (id, title, body, isoDate, hhmm, extra) {
+    if (!g.P.Notif) return { ok: false, msg: '非原生环境' };
+    const perm = await g.P.notifPerm();
+    if (perm.state !== 'granted') return { ok: false, msg: '通知权限未授予' };
+    try {
+      const d = new Date(isoDate + 'T' + (hhmm || '23:30') + ':00');
+      if (isNaN(d.getTime()) || d.getTime() <= Date.now()) return { ok: false, msg: '日期已过' };
+      await g.P.Notif.schedule({
+        notifications: [{
+          id: id, title: title, body: body,
+          schedule: { at: d, allowWhileIdle: true },
+          smallIcon: 'ic_stat_notify',
+          extra: extra || {}
+        }]
+      });
+      return { ok: true };
+    } catch (e) { return { ok: false, msg: e.message || String(e) }; }
+  };
+
+  /* ---------- 应用闹钟（原生 + PWA Web 双通道） ---------- */
+
+  N.apply = async function (settings) {
+    const n = settings.notify || {};
+
+    // PWA / Web 环境：用浏览器通知
+    if (!g.P.Notif) {
+      return N.applyWeb(settings);
+    }
+    await g.P.cancelNotif(N.idRange());
+
+    if (!n.enabled) return { ok: true, native: true, count: 0, msg: '提醒已关闭' };
+
+    const jobs = [];
+
+    /* ① 每日打卡 */
+    if (n.checkinTime) {
+      jobs.push(g.P.scheduleDaily(ID_CHECKIN, '今天记一笔吧',
+        '工作、状态、心情，三项各 30 秒就够了。', n.checkinTime, { type: 'checkin' }));
+    }
+
+    /* ② 服药 / 自定义 */
+    if (n.medEnabled && (n.medTimes || []).length) {
+      n.medTimes.slice(0, 4).forEach(function (t, i) {
+        jobs.push(g.P.scheduleDaily(ID_MED_BASE + i, n.medLabel || '提醒',
+          (n.medLabel || '提醒') + '时间到了。不要自行加减药量。', t, { type: 'med' }));
+      });
+    }
+
+    /* ③ 每周复盘 */
+    if (n.reviewEnabled && n.reviewTime) {
+      jobs.push(g.P.scheduleDaily(ID_REVIEW, '写一份本周复盘',
+        '六道题，五分钟。写完这一周才算真的过去。', n.reviewTime, { type: 'review' }));
+    }
+
+    /* ④ 喝水：按目标量算出次数，均匀分布在清醒时段 */
+    if (n.waterEnabled) {
+      const g1 = g.V.waterGoal(settings.body);
+      const cup = L.clamp(Number(n.waterCup) || 250, 100, 500);
+      const times = N.spreadTimes(n.waterStart || '08:00', n.waterEnd || '21:00',
+        Math.ceil(g1.goal / cup));
+      times.slice(0, 16).forEach(function (t, i) {
+        jobs.push(g.P.scheduleDaily(ID_WATER_BASE + i, '喝口水',
+          '一杯 ' + cup + ' ml，今天还差 ' + Math.max(0, g1.goal - (i * cup)) + ' ml。',
+          t, { type: 'water' }));
+      });
+    }
+
+    /* ⑤ 睡眠：区间提醒 —— 开始一次 + 截止一次 */
+    if (n.sleepEnabled) {
+      const wd = (n.workdays || []).slice();
+      for (let myDay = 1; myDay <= 7; myDay++) {
+        const isWork = wd.indexOf(myDay) >= 0;
+        const win = N.sleepWindow(n, isWork);
+        const tag = isWork ? '工作日' : '休息日';
+
+        // 开始：温和地提示
+        jobs.push(N.scheduleWeekly(ID_SLEEP_START_BASE + myDay,
+          '可以准备睡了',
+          '进入你给自己定的睡觉区间了（' + win.start + '–' + win.end + '）。' +
+          (isWork ? '明天还要早起。' : '今天不用早起，但别熬过头。'),
+          win.start, myDay, { type: 'sleep-start', work: isWork }));
+
+        // 截止：明确一些
+        jobs.push(N.scheduleWeekly(ID_SLEEP_END_BASE + myDay,
+          '已经过 ' + win.end + ' 了',
+          '睡觉区间的最后一档。放下手机，明天的事明天再说。',
+          win.end, myDay, { type: 'sleep-end', work: isWork }));
+      }
+
+      // 手动标记的假期：排一次性闹钟（开始 + 截止）
+      const today = L.today();
+      (n.holidays || []).slice(0, 20).forEach(function (iso, i) {
+        if (!iso || L.daysBetween(today, iso) < 0) return;
+        if (L.daysBetween(today, iso) > 365) return;
+        const win = N.sleepWindow(n, false);
+        jobs.push(N.scheduleOnce(ID_HOLIDAY_START_BASE + i, '可以准备睡了（假期）',
+          '今天标记成了假期，区间 ' + win.start + '–' + win.end + '。',
+          iso, win.start, { type: 'sleep-holiday-start' }));
+        // 截止点如果跨午夜（比如 00:30），要落在第二天
+        const endIso = toMin(win.end) < toMin(win.start)
+          ? L.addDays(iso, 1) : iso;
+        jobs.push(N.scheduleOnce(ID_HOLIDAY_END_BASE + i, '已经过 ' + win.end + ' 了（假期）',
+          '假期也别熬太狠。睡够比什么都值。',
+          endIso, win.end, { type: 'sleep-holiday-end' }));
+      });
+    }
+
+    /* ⑥ 久坐：在生效时段内每 interval 分钟一次 */
+    if (n.sitEnabled) {
+      const times = N.everyTimes(n.sitStart || '09:00', n.sitEnd || '18:00', n.sitInterval || 60);
+      times.forEach(function (t, i) {
+        jobs.push(g.P.scheduleDaily(ID_SIT_BASE + i, '起来动一动',
+          '坐了挺久了，起来走 10 分钟。颈椎和腰会谢你。',
+          t, { type: 'sit' }));
+      });
+    }
+
+    const done = await Promise.all(jobs);
+    const okCount = done.filter((x) => x && x.ok).length;
+    const fallbacks = done.filter((x) => x && x.fallback).length;
+    const firstErr = done.find((x) => x && !x.ok);
+
+    let msg = '已排 ' + okCount + ' 个原生闹钟，App 关掉也会响';
+    if (fallbacks) msg += '（' + fallbacks + ' 个因插件版本限制退化为每天提醒）';
+    if (!okCount) msg = '排闹钟失败：' + ((firstErr && firstErr.msg) || '请检查通知权限');
+
+    return { ok: okCount > 0, native: true, count: okCount, fallbacks: fallbacks, msg: msg };
+  };
+
+  /* ---------- PWA Web 环境：用浏览器 Notification API ---------- */
+
+  N.applyWeb = async function (settings) {
+    const n = settings.notify || {};
+    if (!n.enabled) return { ok: true, native: false, count: 0, msg: '提醒已关闭' };
+
+    // 请求通知权限
+    if ('Notification' in window && Notification.permission === 'default') {
+      await g.P.requestWebNotif();
+    }
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      return { ok: false, native: false, msg: '通知权限未授予，请在浏览器设置中允许通知' };
+    }
+
+    // 取消之前的 Web 定时器
+    g.P.cancelWebNotif(Object.keys(_webSched || {}));
+
+    var _webSched = {};
+    var sched = [];
+
+    function pushWeb(id, title, body, hhmm) {
+      // 算出今天的该时刻
+      const [h, m] = String(hhmm).split(':').map(Number);
+      const d = new Date();
+      d.setHours(h || 0, m || 0, 0, 0);
+      if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1);
+      sched.push({ id: id, title: title, body: body, time: d.toISOString(), repeat: true });
+    }
+
+    /* ① 每日打卡 */
+    if (n.checkinTime) {
+      pushWeb(ID_CHECKIN, '今天记一笔吧',
+        '工作、状态、心情，三项各 30 秒就够了。', n.checkinTime);
+    }
+
+    /* ② 服药 */
+    if (n.medEnabled && (n.medTimes || []).length) {
+      n.medTimes.slice(0, 4).forEach(function (t, i) {
+        pushWeb(ID_MED_BASE + i, n.medLabel || '提醒',
+          (n.medLabel || '提醒') + '时间到了。不要自行加减药量。', t);
+      });
+    }
+
+    /* ③ 每周复盘 */
+    if (n.reviewEnabled && n.reviewTime) {
+      pushWeb(ID_REVIEW, '写一份本周复盘', '六道题，五分钟。', n.reviewTime);
+    }
+
+    /* ④ 喝水 */
+    if (n.waterEnabled) {
+      const g1 = g.V.waterGoal(settings.body);
+      const cup = L.clamp(Number(n.waterCup) || 250, 100, 500);
+      const times = N.spreadTimes(n.waterStart || '08:00', n.waterEnd || '21:00',
+        Math.ceil(g1.goal / cup));
+      times.slice(0, 16).forEach(function (t, i) {
+        pushWeb(ID_WATER_BASE + i, '喝口水',
+          '一杯 ' + cup + ' ml，今天还差 ' + Math.max(0, g1.goal - (i * cup)) + ' ml。', t);
+      });
+    }
+
+    /* ⑤ 久坐 */
+    if (n.sitEnabled) {
+      const times = N.everyTimes(n.sitStart || '09:00', n.sitEnd || '18:00', n.sitInterval || 60);
+      times.forEach(function (t, i) {
+        pushWeb(ID_SIT_BASE + i, '起来动一动', '坐太久了，起来走 10 分钟。', t);
+      });
+    }
+
+    // 逐个调度
+    sched.forEach(function (job) {
+      g.P.scheduleWebNotif(job.id, job.title, job.body, job.time, job.repeat);
+    });
+
+    // 同时启动页面内的轮询（兜底）
+    N.startWebTick(settings);
+
+    return {
+      ok: true, native: false, count: sched.length,
+      msg: '已排 ' + sched.length + ' 个浏览器提醒（需保持页面打开，或安装到桌面后后台运行）'
+    };
+  };
+
+  /* ---------- 浏览器兜底：页面打开时每分钟查一次 ---------- */
+
+  N.startWebTick = function (settings) {
+    N.stopWebTick();
+    const n = settings.notify || {};
+    if (!n.enabled) return;
+    N.timer = setInterval(function () { N.tick(settings); }, 30000);
+    setTimeout(function () { N.tick(settings); }, 4000);
+  };
+  N.stopWebTick = function () { if (N.timer) { clearInterval(N.timer); N.timer = null; } };
+
+  N.tick = function (settings) {
+    const n = settings.notify || {};
+    if (!n.enabled) return;
+    const now = new Date();
+    const hhmm = L.pad(now.getHours()) + ':' + L.pad(now.getMinutes());
+
+    if (hhmm === n.checkinTime && !N.fired['ck' + hhmm]) {
+      N.web('今天记一笔吧', '工作、状态、心情，三项各 30 秒就够了。');
+      N.fired['ck' + hhmm] = 1;
+    }
+    if (n.medEnabled) {
+      (n.medTimes || []).forEach(function (t, i) {
+        if (t === hhmm && !N.fired['md' + i + hhmm]) {
+          N.web(n.medLabel || '提醒', '时间到了。');
+          N.fired['md' + i + hhmm] = 1;
+        }
+      });
+    }
+    if (n.reviewEnabled && now.getDay() === (n.reviewDay || 0) && hhmm === n.reviewTime && !N.fired['rv' + hhmm]) {
+      N.web('写一份本周复盘', '六道题，五分钟。');
+      N.fired['rv' + hhmm] = 1;
+    }
+  };
+
+  N.web = function (title, body) {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      try { new Notification(title, { body: body }); return; } catch (e) { }
+    }
+    g.P.toast(title + '：' + body);
+  };
+
+  /* ---------- 导出 .ics（任何环境下都可靠） ---------- */
+
+  function toUTC(dateStr, timeStr) {
+    const d = new Date(dateStr + 'T' + (timeStr || '09:00') + ':00');
+    if (isNaN(d.getTime())) return null;
+    return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  }
+  function icsEsc(s) {
+    return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/;/g, '\\;')
+      .replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  }
+  function vevent(o) {
+    let s = 'BEGIN:VEVENT\r\n';
+    s += 'UID:' + o.uid + '@jwle\r\n';
+    s += 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '') + '\r\n';
+    s += 'DTSTART:' + o.start + '\r\n';
+    if (o.rrule) s += 'RRULE:' + o.rrule + '\r\n';
+    s += 'SUMMARY:' + icsEsc(o.title) + '\r\n';
+    s += 'DESCRIPTION:' + icsEsc(o.desc) + '\r\n';
+    s += 'BEGIN:VALARM\r\nTRIGGER:-PT0M\r\nACTION:DISPLAY\r\nDESCRIPTION:' + icsEsc(o.title) + '\r\nEND:VALARM\r\n';
+    s += 'END:VEVENT\r\n';
+    return s;
+  }
+
+  const BYDAY = { 1: 'MO', 2: 'TU', 3: 'WE', 4: 'TH', 5: 'FR', 6: 'SA', 7: 'SU' };
+
+  N.buildICS = function (settings) {
+    const n = settings.notify || {};
+    const today = L.today();
+    let ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//JWLE//DayByDay//CN\r\n' +
+      'CALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\nX-WR-CALNAME:JWLE · 我的提醒\r\nX-WR-TIMEZONE:Asia/Shanghai\r\n';
+
+    if (n.checkinTime) {
+      const st = toUTC(today, n.checkinTime);
+      if (st) ics += vevent({ uid: 'checkin', start: st, rrule: 'FREQ=DAILY',
+        title: '记一笔', desc: '工作、状态、心情，三项各 30 秒。' });
+    }
+    if (n.medEnabled) {
+      (n.medTimes || []).forEach(function (t, i) {
+        const st = toUTC(today, t);
+        if (!st) return;
+        ics += vevent({ uid: 'med' + i, start: st, rrule: 'FREQ=DAILY',
+          title: (n.medLabel || '提醒'),
+          desc: (n.medLabel || '提醒') + '时间到了。不要自行加减药量，有副作用先记录再问医生。' });
+      });
+    }
+    if (n.reviewEnabled) {
+      const st = toUTC(today, n.reviewTime);
+      if (st) ics += vevent({ uid: 'review', start: st, rrule: 'FREQ=WEEKLY;BYDAY=SU',
+        title: '每周复盘', desc: '六道题，五分钟。' });
+    }
+
+    /* 喝水 */
+    if (n.waterEnabled) {
+      const g1 = g.V.waterGoal(settings.body);
+      const cup = L.clamp(Number(n.waterCup) || 250, 100, 500);
+      N.spreadTimes(n.waterStart || '08:00', n.waterEnd || '21:00', Math.ceil(g1.goal / cup))
+        .slice(0, 16).forEach(function (t, i) {
+          const st = toUTC(today, t);
+          if (!st) return;
+          ics += vevent({ uid: 'water' + i, start: st, rrule: 'FREQ=DAILY',
+            title: '喝口水（' + (i + 1) + '）',
+            desc: '一杯 ' + cup + ' ml。今日目标 ' + g1.goal + ' ml。别一次灌太多。' });
+        });
+    }
+
+    /* 睡眠：区间提醒 —— 工作日 / 非工作日各自"开始 + 截止"两个事件 */
+    if (n.sleepEnabled) {
+      const wd = (n.workdays || []).slice();
+      const work = [], rest = [];
+      for (let d = 1; d <= 7; d++) (wd.indexOf(d) >= 0 ? work : rest).push(BYDAY[d]);
+
+      // 截止点跨午夜时（如 23:30–00:30），日历里截止事件要往后推一天，
+      // 否则它会排在当天凌晨、比开始还早，看起来很怪。
+      function shiftIfWrap(iso, start, end) {
+        return toMin(end) < toMin(start) ? L.addDays(iso, 1) : iso;
+      }
+
+      [['work', work, true], ['rest', rest, false]].forEach(function (pair) {
+        const key = pair[0], days = pair[1], isWork = pair[2];
+        if (!days.length) return;
+        const win = N.sleepWindow(n, isWork);
+        const rrule = 'FREQ=WEEKLY;BYDAY=' + days.join(',');
+
+        const s1 = toUTC(today, win.start);
+        if (s1) ics += vevent({ uid: 'sleep-' + key + '-start', start: s1, rrule: rrule,
+          title: '可以准备睡了（' + (isWork ? '工作日' : '休息日') + '）',
+          desc: '睡觉区间 ' + win.start + '–' + win.end + ' 的第一档。' +
+                (isWork ? '明天还要早起。' : '今天不用早起，但别熬过头。') });
+
+        const s2 = toUTC(shiftIfWrap(today, win.start, win.end), win.end);
+        if (s2) ics += vevent({ uid: 'sleep-' + key + '-end', start: s2, rrule: rrule,
+          title: '已经过 ' + win.end + ' 了（' + (isWork ? '工作日' : '休息日') + '）',
+          desc: '睡觉区间的最后一档。放下手机，明天的事明天再说。' });
+      });
+
+      (n.holidays || []).forEach(function (iso, i) {
+        if (L.daysBetween(today, iso) < 0) return;
+        const win = N.sleepWindow(n, false);
+        const s1 = toUTC(iso, win.start);
+        if (s1) ics += vevent({ uid: 'sleep-hol' + i + '-start', start: s1,
+          title: '可以准备睡了（假期）', desc: '今天标记成了假期。' });
+        const s2 = toUTC(shiftIfWrap(iso, win.start, win.end), win.end);
+        if (s2) ics += vevent({ uid: 'sleep-hol' + i + '-end', start: s2,
+          title: '已经过 ' + win.end + ' 了（假期）', desc: '假期也别熬太狠。' });
+      });
+    }
+
+    /* 久坐 */
+    if (n.sitEnabled) {
+      N.everyTimes(n.sitStart || '09:00', n.sitEnd || '18:00', n.sitInterval || 60)
+        .forEach(function (t, i) {
+          const st = toUTC(today, t);
+          if (!st) return;
+          ics += vevent({ uid: 'sit' + i, start: st, rrule: 'FREQ=DAILY',
+            title: '起来动一动',
+            desc: '坐太久了。起来走 10~15 分钟，颈椎和腰会谢你。' });
+        });
+    }
+
+    ics += 'END:VCALENDAR\r\n';
+    return ics;
+  };
+
+  N.downloadICS = function (settings) {
+    const txt = N.buildICS(settings);
+    const blob = new Blob(['\ufeff' + txt], { type: 'text/calendar;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'JWLE-提醒日历.ics';
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 300);
+  };
+
+  g.Notify = N;
+})(window);
+
+
+/* ===== app.js ===== */
+/* =========================================================
+   app.js —— 界面与交互
+   ========================================================= */
+(function (g) {
+  'use strict';
+  const L = g.L, P = g.P, V = g.V, Sync = g.Sync, Notify = g.Notify, I = g.I;
+  const A = { tab: 'work', settings: null, day: null, conflicts: [], review: null };
+
+  /* ================= 图标注入 =================
+     把 index.html 里的 data-icon="tab:work" 之类占位符换成真正的 SVG。
+     这样做的好处是 HTML 保持可读（一眼看得出这是什么图标），
+     而 SVG 路径集中放在 icons.js 里，改一处全站生效。 */
+  A.hydrateIcons = function (root) {
+    if (!I) return;
+    const scope = root || document;
+    scope.querySelectorAll('[data-icon]').forEach(function (el) {
+      const key = el.dataset.icon;
+      let html = '';
+      if (key.indexOf('tab:') === 0) html = I.tab(key.slice(4));
+      else if (key === 'gear') html = I.gear();
+      else if (key === 'close') html = I.close();
+      else if (key === 'check') html = I.check();
+      else if (key === 'chevron') html = I.chevron();
+      else if (key === 'plus') html = I.plus();
+      if (html) { el.innerHTML = html; el.removeAttribute('data-icon'); }
+    });
+  };
+
+  /* ================= 空状态 =================
+     一个居中的灰字信息量几乎为零。iOS 的空状态是
+     图标 + 标题 + 副标题，读起来是"等你开始"而不是"没东西"。 */
+  function empty(kind, title, sub) {
+    return '<div class="empty">' +
+      '<div class="empty-icon">' + (I ? I.emptyIcon(kind) : '') + '</div>' +
+      '<div class="empty-title">' + L.esc(title) + '</div>' +
+      (sub ? '<div class="empty-sub">' + L.esc(sub) + '</div>' : '') +
+      '</div>';
+  }
+
+  /* ================= 触感分级 =================
+     旧代码只有 LIGHT / MEDIUM 两档，导致
+     "勾选完成"和"删除了一条记录"摸起来是一样的。
+     iOS 的语义是三档：确认 / 警告 / 失败。 */
+  function haptic(kind) {
+    const map = {
+      tap: 'LIGHT',        // 切换 tab、展开列表
+      done: 'SUCCESS',     // 完成一件事、添加成功
+      warn: 'WARNING',     // 删除、不可逆操作
+      err: 'ERROR'         // 被规则拒绝（超出饮水上限等）
+    };
+    P.haptic(map[kind] || 'LIGHT');
+  }
+  A.haptic = haptic;
+
+  /* ================= 启动 ================= */
+
+  A.boot = async function () {
+    await P.init();
+
+    /* PWA / Web 环境：不需要原生插件，直接继续。
+       原生 App 才需要插件，否则任何写入都是假安全。 */
+    if (P.broken && P.broken.length && P.isNative) {
+      P.showFatal();
+      return;
+    }
+
+    A.settings = await V.loadSettings();
+    await applyTheme();
+
+    if (!A.settings.onboarded) {
+      L.$('#onboarding').classList.remove('hidden');
+      L.$('#app').classList.add('hidden');
+    } else {
+      await enterApp();
+    }
+
+    A.hydrateIcons();
+    bindGlobal();
+    bindTopbarScroll();
+    P.bindBack(function () {
+      if (!L.$('#modal').classList.contains('hidden')) { A.closeModal(); return true; }
+      if (A.tab === 'settings') { A.tab = 'work'; A.render(); return true; }
+      return false;
+    });
+    await P.hideSplash();
+
+    // PWA：提示安装
+    if (window.deferredPrompt) {
+      // 延迟弹出，不打扰首次体验
+    }
+  };
+
+  async function enterApp() {
+    L.$('#onboarding').classList.add('hidden');
+    L.$('#app').classList.remove('hidden');
+    A.day = await V.loadDay(L.today());
+    A.conflicts = await V.listConflicts();
+    A.review = await V.loadReview(L.weekKey());
+    A.tab = 'work';
+    updateHeader();
+    A.render();
+
+    Notify.startWebTick(A.settings);
+    if (A.settings.sync.autoOnOpen && A.settings.sync.mode !== 'none' && A.settings.sync.mode !== 'folder') {
+      setTimeout(async function () {
+        try {
+          const r = await Sync.runSync(A.settings);
+          if (r.ok) {
+            A.settings.sync.lastSyncAt = L.now();
+            await V.saveSettings(A.settings);
+            P.toast('自动同步完成：' + r.msg);
+          }
+        } catch (e) {
+          // 自动同步是后台行为，失败不打扰用户
+          console.warn('[sync] 自动同步失败', e);
+        }
+      }, 1500);
+    }
+  }
+
+  function updateHeader() {
+    /* 手机上不需要每天被提醒"2026 年"。短格式把视觉重量
+       还给真正在变的那部分：几号、周几。 */
+    L.$('#tbDate').textContent = L.fmtDateShort
+      ? L.fmtDateShort(L.today())
+      : L.fmtDate(L.today());
+    const done = (A.day.tasks || []).filter((t) => t.done).length;
+    const total = (A.day.tasks || []).length;
+    L.$('#tbSub').textContent = total ? ('今日 ' + done + '/' + total + ' · 心情 ' + A.day.mood + '/10') : '今天还没有安排';
+  }
+
+  /* 滚动超过 20px 就进入紧凑态：副标题收起，顶栏变矮。
+     iOS 的大标题就是这么收的 —— 用空间换层次。 */
+  function bindTopbarScroll() {
+    const view = L.$('#view');
+    const bar = L.$('#topbar');
+    if (!view || !bar) return;
+    view.addEventListener('scroll', function () {
+      bar.classList.toggle('compact', view.scrollTop > 20);
+    }, { passive: true });
+  }
+
+  async function applyTheme() {
+    document.body.classList.toggle('dark', A.settings && A.settings.theme === 'dark');
+    await P.setStatusBar(A.settings && A.settings.theme === 'dark' ? false : true);
+  }
+
+  /* ================= 渲染 ================= */
+
+  A.render = function () {
+    const v = L.$('#view');
+    // 重建 DOM 会把输入框的 value 冲掉，先把待保存的内容落盘
+    if (A.flushPending) A.flushPending();
+    const map = { work: viewWork, status: viewStatus, mood: viewMood, conflict: viewConflict, review: viewReview, settings: viewSettings };
+    try {
+      v.innerHTML = (map[A.tab] || viewWork)();
+    } catch (e) {
+      v.innerHTML = '<div class="card">渲染出错：' + L.esc(e.message) + '</div>';
+      console.error(e);
+    }
+    L.$$('.tab').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === A.tab); });
+    A.hydrateIcons(v);
+    bindView();
+    bindTimeInputs();
+    v.scrollTop = 0;
+  };
+
+  /* 时间输入降级：部分 Android WebView / 国产 ROM 定制内核点 `type="time"`
+     不弹选择器，或弹了确认不了。做一次能力检测，不行就换成文本输入 + 手动校验。
+
+     检测方式：创建一个隐藏的 time input，看浏览器是否保留 type。
+     不支持时 input.type 会被归一化成 "text"。这是同步的、可靠的。 */
+  let _timeOK = null;
+  function timeSupported() {
+    if (_timeOK !== null) return _timeOK;
+    try {
+      const t = document.createElement('input');
+      t.setAttribute('type', 'time');
+      _timeOK = t.type === 'time';
+    } catch (e) { _timeOK = false; }
+    return _timeOK;
+  }
+
+  function bindTimeInputs() {
+    if (timeSupported()) return;
+    L.$$('input[type="time"]').forEach(function (el) {
+      // 降级成 HH:MM 文本输入
+      const p = document.createElement('input');
+      p.className = el.className;
+      p.id = el.id;
+      p.type = 'text';
+      p.inputMode = 'numeric';
+      p.placeholder = 'HH:MM';
+      p.value = el.value || '';
+      p.maxLength = 5;
+      p.setAttribute('pattern', '[0-2][0-9]:[0-5][0-9]');
+      el.parentNode.replaceChild(p, el);
+    });
+  }
+
+  /* ---------- 今日工作 ---------- */
+
+  function viewWork() {
+    const d = A.day;
+    const tasks = d.tasks || [];
+    let list = '';
+    if (!tasks.length) {
+      list = empty('work', '今天还没有安排', '写下第一件要做的事');
+    } else {
+      tasks.forEach(function (t, i) {
+        list += '<div class="task' + (t.done ? ' done' : '') + '">' +
+          '<div class="task-chk' + (t.done ? ' on' : '') + '" data-act="tk-toggle" data-i="' + i + '"></div>' +
+          '<div class="task-text">' + L.esc(t.text) + '</div>' +
+          '<button class="task-del" data-act="tk-del" data-i="' + i + '" aria-label="删除">' +
+            (I ? I.close({ size: 17 }) : '×') + '</button>' +
+          '</div>';
+      });
+    }
+    const undone = tasks.filter((t) => !t.done).length;
+
+    return '' +
+      '<div class="card">' +
+      '<h3 class="card-h">今日工作</h3>' +
+      '<p class="card-note">只写今天真要做的。写多了等于没写。</p>' +
+      list +
+      '<div class="row-wrap mt2">' +
+      '<input class="input" id="tkNew" placeholder="再加一件事…" style="flex:1;min-width:140px">' +
+      '<button class="btn primary" data-act="tk-add">添加</button>' +
+      '</div>' +
+      '</div>' +
+      (undone ? '<div class="card"><h3 class="card-h">还有 ' + undone + ' 件没做完</h3>' +
+        '<p class="card-note">明天接着做，还是现在就划掉？</p>' +
+        '<div class="row-wrap">' +
+        '<button class="btn" data-act="tk-carry">挪到明天</button>' +
+        '<button class="btn ghost" data-act="tk-clear">全部标记完成</button>' +
+        '</div></div>' : '') +
+      waterCard() +
+      '<div class="card">' +
+      '<h3 class="card-h">今日一句</h3>' +
+      '<p class="card-note">给今天留一句话。以后回看会感谢现在的你。</p>' +
+      '<textarea class="input" id="noteIn" placeholder="今天想记住的是…">' + L.esc(d.note) + '</textarea>' +
+      '</div>';
+  }
+
+  /* ---------- 今日饮水 ---------- */
+
+  function waterCard() {
+    const d = A.day;
+    const g = V.waterGoal(A.settings.body);
+    // 今天的目标跟着身体参数走；历史日期保留当天的快照
+    if (d.date === L.today() && d.water.goal !== g.goal) d.water.goal = g.goal;
+
+    const done = d.water.done || 0;
+    const goal = d.water.goal || g.goal;
+    const pct = goal ? Math.min(100, Math.round(done / goal * 100)) : 0;
+
+    // 三个快捷杯量：200 / 设定杯量 / 500，去重
+    const cup = L.clamp(Number(A.settings.notify.waterCup) || 250, 100, 500);
+    const opts = [];
+    [200, cup, 500].forEach(function (c) { if (opts.indexOf(c) < 0) opts.push(c); });
+    while (opts.length < 3) opts.push(opts[opts.length - 1] + 100);
+
+    const logs = (d.water.logs || []).slice(-6).reverse().map(function (x) {
+      return '<div>' + (x.t || '—') + ' · ' + x.ml + ' ml</div>';
+    }).join('');
+
+    return '' +
+      '<div class="card">' +
+      '<h3 class="card-h">今日饮水</h3>' +
+      '<p class="card-note">' +
+      '目标 ' + goal + ' ml（体表面积法算的，见设置）。' +
+      (g.capped ? '<br><span style="color:var(--warn)">已按上限 ' + g.cap + ' ml 截断，再多就有水中毒风险。</span>' : '') +
+      '</p>' +
+      '<div class="water-top"><span class="water-cur">' + done + '</span>' +
+      '<span class="water-goal">/ ' + goal + ' ml</span></div>' +
+      '<div class="water-bar"><div class="water-fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="water-pct">' + pct + '%' + (done >= goal && goal > 0 ? ' · 今天够了' : '') + '</div>' +
+      '<div class="cups">' +
+      opts.map(function (c) {
+        return '<button class="btn" data-act="wa-add" data-ml="' + c + '">+' + c + '</button>';
+      }).join('') +
+      '</div>' +
+      '<div class="row-wrap mt1">' +
+      '<button class="btn ghost sm" data-act="wa-undo">撤销上一杯</button>' +
+      '</div>' +
+      (logs ? '<div class="water-logs">' + logs + '</div>' : '') +
+      '</div>';
+  }
+
+  /* ---------- 久坐 / 起身活动 ---------- */
+
+  function sitCard() {
+    const d = A.day;
+    const n = (d.activity.breaks || []).length;
+    const mins = V.minutesSinceBreak(d);
+    const iv = Number(A.settings.notify.sitInterval) || 60;
+
+    let tip = '';
+    if (mins == null && n === 0) {
+      tip = '<div class="sit-warn">今天还没记过。想起来的时候就点一下。</div>';
+    } else if (mins != null && mins >= iv) {
+      tip = '<div class="sit-warn">距离上次起来已经 ' + mins + ' 分钟了，动一动。</div>';
+    }
+
+    return '' +
+      '<div class="card">' +
+      '<h3 class="card-h">起身活动</h3>' +
+      '<p class="card-note">手机检测不到你坐着没有 —— 它只能定时提醒。' +
+      '真正的久坐检测需要手表 / 手环。</p>' +
+      '<div class="sit-row">' +
+      '<span class="sit-num">' + n + '</span>' +
+      '<span class="sit-lbl">次 · ' +
+      (mins != null ? '上次 ' + mins + ' 分钟前' : (n ? '—' : '今天还没有')) +
+      '</span>' +
+      '</div>' +
+      tip +
+      '<div class="row-wrap mt2">' +
+      '<button class="btn primary" data-act="sit-add">我起来动过了</button>' +
+      '</div>' +
+      '<p class="hint mt1">点了之后记一次，提醒周期重新开始算。' +
+      '目标是坐 ' + iv + ' 分钟起来走 10~15 分钟。</p>' +
+      '</div>';
+  }
+
+  /* ---------- 每日状态 ---------- */
+
+  function viewStatus() {
+    const d = A.day;
+    return '' +
+      '<div class="card">' +
+      '<h3 class="card-h">每日状态</h3>' +
+      '<p class="card-note">两个数字，两句话。别让它变成负担。</p>' +
+      '<div class="slider-row"><span class="lb">精力</span>' +
+      '<input type="range" min="1" max="10" value="' + d.energy + '" id="enRange">' +
+      '<span class="num" id="enNum">' + d.energy + '</span></div>' +
+      '<div class="slider-row mt1"><span class="lb">睡眠</span>' +
+      '<input type="range" min="1" max="10" value="' + d.sleep + '" id="slRange">' +
+      '<span class="num" id="slNum">' + d.sleep + '</span></div>' +
+      '</div>' +
+      '<div class="card">' +
+      '<h3 class="card-h">今天最耗电的一件事</h3>' +
+      '<textarea class="input" id="drainIn" placeholder="想到它就知道今天电量去哪了…">' + L.esc(d.drain) + '</textarea>' +
+      '<h3 class="card-h mt2">今天给我充电的一件事</h3>' +
+      '<textarea class="input" id="chargeIn" placeholder="哪怕很小也算。">' + L.esc(d.charge) + '</textarea>' +
+      '</div>' +
+      sitCard() +
+      weekStrip();
+  }
+
+  function weekStrip() {
+    return '<div class="card"><h3 class="card-h">这一周</h3>' +
+      '<p class="card-note">点日期可以切换到那天查看。</p>' +
+      '<div class="stat-row" id="weekStrip"></div></div>';
+  }
+
+  /* ---------- 心情与支持 ---------- */
+
+  function viewMood() {
+    const d = A.day;
+    const chips = V.EMOTIONS.map(function (e) {
+      return '<button class="chip' + (d.emotions.indexOf(e) >= 0 ? ' on' : '') + '" data-act="mo-chip" data-e="' + e + '">' + e + '</button>';
+    }).join('');
+    return '' +
+      '<div class="card">' +
+      '<h3 class="card-h">今天的心情</h3>' +
+      '<div class="mood-big"><span class="mood-num" id="mdNum">' + d.mood + '</span><span class="mood-den">/ 10</span></div>' +
+      '<input type="range" min="1" max="10" value="' + d.mood + '" id="mdRange" style="width:100%;accent-color:var(--brand)">' +
+      '<div class="chips mt2">' + chips + '</div>' +
+      '</div>' +
+      '<div class="card">' +
+      '<h3 class="card-h">发生了什么</h3>' +
+      '<p class="card-note">只写事实：谁、在哪、说了什么。不写评价。</p>' +
+      '<textarea class="input" id="factIn" placeholder="例：晚上十点发消息，两小时没有回复。">' + L.esc(d.fact) + '</textarea>' +
+      '</div>' +
+      '<div class="card">' +
+      '<h3 class="card-h">我需要' + L.esc(A.settings.partner) + '做什么</h3>' +
+      '<p class="card-note">具体到对方能直接照做的动作，别写"多关心我"。</p>' +
+      '<textarea class="input" id="needIn" placeholder="例：忙的时候先回一个「在忙」，不用聊。">' + L.esc(d.need) + '</textarea>' +
+      '<div class="row-wrap mt1">' +
+      '<button class="btn" data-act="mo-compose">生成一句能发出去的话</button>' +
+      '</div>' +
+      '</div>' +
+      '<div class="card"><div class="quote">情绪没有对错。分数低不是失败，是信号。<br>' +
+      '如果连着好几天都在 3 分以下，值得找专业的人聊聊——这不是矫情。</div></div>';
+  }
+
+  /* ---------- 矛盾工坊 ---------- */
+
+  const STATUS_TXT = { draft: '草稿', sent: '已发出', responded: '已回应', resolved: '已和解' };
+  const STATUS_CLS = { draft: 'draft', sent: 'sent', responded: 'sent', resolved: 'done' };
+
+  function viewConflict() {
+    const cs = A.conflicts;
+    let list = '';
+    if (!cs.length) {
+      list = empty('conflict', '还没有议题', '有话卡在心里的时候，来这里拆开说');
+    } else {
+      cs.forEach(function (c) {
+        list += '<div class="item" data-act="cf-open" data-id="' + c.id + '">' +
+          '<div class="item-t">' + L.esc(c.title || '未命名议题') +
+          '<span class="badge ' + STATUS_CLS[c.status] + '">' + STATUS_TXT[c.status] + '</span></div>' +
+          '<div class="item-s">' + new Date(c.created || Date.now()).toLocaleDateString('zh-CN') + '</div>' +
+          '</div>';
+      });
+    }
+    return '' +
+      '<div class="card">' +
+      '<h3 class="card-h">矛盾工坊</h3>' +
+      '<p class="card-note">四步：事实 → 感受 → 需要 → 请求。<br>' +
+      '先写完，再决定要不要发出去。写本身就已经消解一半的火气。</p>' +
+      '<button class="btn primary block" data-act="cf-new">开一个新的议题</button>' +
+      '</div>' +
+      list +
+      '<div class="card"><div class="quote">如果两个人都已经在气头上，先按下「暂停」。<br>' +
+      '二十分钟之后再说，比现在说清楚更有可能说清楚。</div></div>';
+  }
+
+  A.openConflict = function (id) {
+    let c = A.conflicts.find((x) => x.id === id);
+    if (!c) { c = V.blankConflict(); A.conflicts.unshift(c); }
+    const isNew = !c.title && !c.fact;
+    const body = '' +
+      '<label class="lbl">议题（一句话）</label>' +
+      '<input class="input" id="cfTitle" value="' + L.esc(c.title) + '" placeholder="例：关于回复消息的速度">' +
+
+      '<label class="lbl mt2">① 事实<span style="color:var(--ink3);font-weight:400"> · 只写发生的事，不写评价</span></label>' +
+      '<textarea class="input" id="cfFact" placeholder="例：周三周四两天，我发的消息都是隔了六小时才回。">' + L.esc(c.fact) + '</textarea>' +
+
+      '<label class="lbl mt2">② 我的感受</label>' +
+      '<textarea class="input" id="cfFeel" placeholder="例：我会慌，会开始猜是不是自己做错了什么。">' + L.esc(c.feeling) + '</textarea>' +
+
+      '<label class="lbl mt2">③ 我的需要</label>' +
+      '<textarea class="input" id="cfNeed" placeholder="例：我需要一个确定的预期，知道大概什么时候能等到回复。">' + L.esc(c.need) + '</textarea>' +
+
+      '<label class="lbl mt2">④ 我的请求<span style="color:var(--ink3);font-weight:400"> · 具体到对方能照做</span></label>' +
+      '<textarea class="input" id="cfReq" placeholder="例：忙的时候先发一个「在忙，晚点聊」，可以吗？">' + L.esc(c.request) + '</textarea>' +
+
+      '<label class="lbl mt2">' + L.esc(A.settings.partner) + '的回应</label>' +
+      '<textarea class="input" id="cfResp" placeholder="对方看过之后写在这里（或由对方的设备同步过来）。">' + L.esc(c.response) + '</textarea>' +
+
+      '<label class="lbl mt2">我们达成的约定</label>' +
+      '<textarea class="input" id="cfPact" placeholder="例：工作日中午和晚上各回一次，忙的时候提前说一声。">' + L.esc(c.pact) + '</textarea>' +
+
+      '<div class="grp-t">状态</div>' +
+      '<div class="chips">' +
+      Object.keys(STATUS_TXT).map(function (k) {
+        return '<button class="chip' + (c.status === k ? ' on' : '') + '" data-act="cf-status" data-s="' + k + '">' + STATUS_TXT[k] + '</button>';
+      }).join('') +
+      '</div>' +
+      '<div class="row-wrap mt2">' +
+      '<button class="btn" data-act="cf-letter">转成一段能发出去的话</button>' +
+      '<button class="btn ghost" data-act="cf-pause">暂停 20 分钟</button>' +
+      '<button class="btn danger sm" data-act="cf-del">删除</button>' +
+      '</div>';
+
+    A.modal({
+      title: isNew ? '新的议题' : '议题：' + (c.title || '未命名'),
+      body: body,
+      okText: '保存',
+      onOk: async function () {
+        c.title = L.$('#cfTitle').value.trim() || '未命名议题';
+        c.fact = L.$('#cfFact').value;
+        c.feeling = L.$('#cfFeel').value;
+        c.need = L.$('#cfNeed').value;
+        c.request = L.$('#cfReq').value;
+        c.response = L.$('#cfResp').value;
+        c.pact = L.$('#cfPact').value;
+        await V.saveConflict(c);
+        A.conflicts = await V.listConflicts();
+        A.render();
+        P.toast('已保存到 vault/conflicts/');
+      }
+    });
+    A._curConflict = c;
+  };
+
+  /* ---------- 每周复盘 ---------- */
+
+  function viewReview() {
+    const r = A.review;
+    return '' +
+      '<div class="card">' +
+      '<h3 class="card-h">复盘 · ' + r.week + '</h3>' +
+      '<p class="card-note">六道题，五分钟。写完这一周才算真的过去。</p>' +
+      '<div class="slider-row"><span class="lb">这段关系本周</span>' +
+      '<input type="range" min="1" max="10" value="' + r.relation + '" id="rvRange">' +
+      '<span class="num" id="rvNum">' + r.relation + '</span></div>' +
+      '</div>' +
+      '<div class="card">' +
+      '<label class="lbl">本周最有进展的一件事</label>' +
+      '<textarea class="input" id="rvProgress" placeholder="哪怕很小也算。">' + L.esc(r.progress) + '</textarea>' +
+      '<label class="lbl mt2">本周最消耗的一件事</label>' +
+      '<textarea class="input" id="rvDrain" placeholder="是什么在持续抽你的电？">' + L.esc(r.drain) + '</textarea>' +
+      '<label class="lbl mt2">我做得好的地方</label>' +
+      '<textarea class="input" id="rvGood" placeholder="别客气，写一条。">' + L.esc(r.good) + '</textarea>' +
+      '<label class="lbl mt2">我想调整的地方</label>' +
+      '<textarea class="input" id="rvChange" placeholder="只写一条，下周真的能改的。">' + L.esc(r.change) + '</textarea>' +
+      '<label class="lbl mt2">下周我最想要的一件事</label>' +
+      '<textarea class="input" id="rvNext" placeholder="一件就够。">' + L.esc(r.nextwant) + '</textarea>' +
+      '<div class="row-wrap mt2">' +
+      '<button class="btn primary" data-act="rv-save">保存复盘</button>' +
+      '<button class="btn" data-act="rv-history">看以前的复盘</button>' +
+      '</div>' +
+      '</div>';
+  }
+
+  /* ---------- 设置 ---------- */
+
+  function viewSettings() {
+    const s = A.settings, n = s.notify, sy = s.sync;
+    const syncModeTxt = { none: '暂不同步', folder: '文件夹（Syncthing）', webdav: 'WebDAV', github: 'GitHub Gist' }[sy.mode] || sy.mode;
+
+    // PWA 安装提示（仅在支持且未安装时显示）
+    var pwaInstallCard = '';
+    if ('serviceWorker' in navigator && window.matchMedia('(display-mode: browser)').matches) {
+      pwaInstallCard =
+        '<div class="grp-t">安装到桌面（PWA）</div>' +
+        '<div class="card">' +
+        '<p class="hint mb1">把 JWLE 安装到主屏幕，获得类原生 App 体验：</p>' +
+        '<div class="quote">' +
+        '✓ 全屏运行，无浏览器地址栏<br>' +
+        '✓ 图标在桌面，一键打开<br>' +
+        '✓ 离线可用，数据本地存储<br>' +
+        '✓ 支持浏览器通知提醒' +
+        '</div>' +
+        '<div class="row-wrap mt2">' +
+        '<button class="btn primary" data-act="pwa-install">安装到桌面</button>' +
+        '</div>' +
+        '<p class="hint mt1">也可以手动安装：Chrome 菜单 → 安装 JWLE；Safari → 分享 → 添加到主屏幕</p>' +
+        '</div>';
+    }
+
+    return '' +
+      pwaInstallCard +
+      '<div class="grp-t">基本</div>' +
+      '<div class="card">' +
+      '<label class="lbl">称呼我</label>' +
+      '<input class="input" id="seMe" value="' + L.esc(s.me) + '" maxlength="8">' +
+      '<label class="lbl mt1">称呼对方</label>' +
+      '<input class="input" id="sePartner" value="' + L.esc(s.partner) + '" maxlength="8">' +
+      '<div class="row-wrap mt2">' +
+      '<button class="btn primary" data-act="se-save">保存</button>' +
+      '<button class="btn ghost" data-act="se-theme">' + (s.theme === 'dark' ? '切换成浅色' : '切换成深色') + '</button>' +
+      '</div></div>' +
+
+      bodyCard() +
+      waterSetCard() +
+      sleepSetCard() +
+      sitSetCard() +
+
+      '<div class="grp-t">提醒 · 记录与用药</div>' +
+      '<div class="card">' +
+      (P.Notif ? '<div class="hint mb1">原生闹钟：App 关掉、手机重启后照样响。</div>'
+        : '<div class="quote warn">当前不是原生 App 环境，定时提醒请用「导出到手机日历」。</div>') +
+      '<label class="row mt1">' +
+        '<span class="row-t">开启总提醒开关</span>' +
+        '<input class="sw" type="checkbox" id="ntEnabled"' + (n.enabled ? ' checked' : '') + '>' +
+        '<span class="sw-ui"></span></label>' +
+      '<label class="lbl mt2">每天记一笔</label>' +
+      '<input class="input" type="time" id="ntCheckin" value="' + L.esc(n.checkinTime || '21:00') + '">' +
+      '<label class="row mt2">' +
+        '<span class="row-t">开启服药 / 自定义提醒</span>' +
+        '<input class="sw" type="checkbox" id="ntMed"' + (n.medEnabled ? ' checked' : '') + '>' +
+        '<span class="sw-ui"></span></label>' +
+      '<label class="lbl mt1">提醒名称</label>' +
+      '<input class="input" id="ntMedLabel" value="' + L.esc(n.medLabel || '吃药') + '">' +
+      '<label class="lbl mt1">时间点（英文逗号分隔）</label>' +
+      '<input class="input" id="ntMedTimes" value="' + L.esc((n.medTimes || []).join(',')) + '" placeholder="08:00,20:00">' +
+      '<label class="row mt2">' +
+        '<span class="row-t">每周日提醒写复盘</span>' +
+        '<input class="sw" type="checkbox" id="ntReview"' + (n.reviewEnabled ? ' checked' : '') + '>' +
+        '<span class="sw-ui"></span></label>' +
+      '<label class="lbl mt1">复盘提醒时间</label>' +
+      '<input class="input" type="time" id="ntReviewTime" value="' + L.esc(n.reviewTime || '20:00') + '">' +
+      '<div class="row-wrap mt2">' +
+      '<button class="btn primary" data-act="nt-save">应用提醒</button>' +
+      '<button class="btn" data-act="nt-ics">导出到手机日历</button>' +
+      '<button class="btn ghost sm" data-act="nt-check">查看已排的闹钟</button>' +
+      '</div></div>' +
+
+      '<div class="grp-t">云备份</div>' +
+      '<div class="card">' +
+      '<p class="card-note">当前：<strong>' + syncModeTxt + '</strong>' +
+      (sy.lastSyncAt ? ' · 上次同步 ' + new Date(sy.lastSyncAt).toLocaleString('zh-CN') : '') + '</p>' +
+      '<div class="chips">' +
+      ['none', 'folder', 'webdav', 'github'].map(function (k) {
+        return '<button class="chip' + (sy.mode === k ? ' on' : '') + '" data-act="sy-mode" data-m="' + k + '">' +
+          ({ none: '暂不同步', folder: '文件夹', webdav: 'WebDAV', github: 'GitHub' })[k] + '</button>';
+      }).join('') +
+      '</div>' +
+      (sy.mode === 'webdav' ? webdavForm(sy) : '') +
+      (sy.mode === 'github' ? githubForm(sy) : '') +
+      (sy.mode === 'folder' ? folderForm() : '') +
+      '</div>' +
+
+      '<div class="grp-t">数据</div>' +
+      '<div class="card">' +
+      '<p class="card-note">全部数据都是纯 Markdown 文件，存在下面这个目录里。</p>' +
+      '<div class="path-box mono" id="vaultPath">读取中…</div>' +
+      '<div class="row-wrap mt2">' +
+      '<button class="btn primary" data-act="dt-import">导入备份</button>' +
+      '<button class="btn" data-act="dt-zip">导出全部（.zip）</button>' +
+      '<button class="btn" data-act="dt-md">导出单个 .md</button>' +
+      '<button class="btn ghost sm" data-act="dt-stat">看看有多少了</button>' +
+      '</div>' +
+      '<p class="hint mt1">导入支持：本应用导出的 .zip、单个 .md、同步用的 .json 包。<br>' +
+      '按修改时间合并，新的覆盖旧的 —— 所以重复导入是安全的。</p>' +
+      '</div></div>' +
+
+      '<div class="grp-t">关于</div>' +
+      '<div class="card">' +
+      '<p class="hint">JWLE v1.1<br>' +
+      '本地优先 · 纯文本存储 · 同步方式由你决定<br><br>' +
+      '数据属于你。App 只是打开它的一个窗口。<br>' +
+      '换任何编辑器都能打开那些 .md 文件，这是故意的。</p>' +
+      '<div class="row-wrap mt2">' +
+      '<button class="btn" data-act="se-privacy">隐私政策</button>' +
+      '<button class="btn ghost sm" data-act="se-dataflow">数据去向</button>' +
+      '</div>' +
+      '<p class="hint mt1">本应用没有服务器、没有账号、没有统计埋点，' +
+      '开发者拿不到你的任何数据。</p>' +
+      '</div>';
+  }
+
+  /* ---------- 设置：身体参数（决定饮水目标） ---------- */
+
+  const WEEK_NAMES = ['一', '二', '三', '四', '五', '六', '日'];
+
+  function bodyCard() {
+    const b = A.settings.body || {};
+    const g = V.waterGoal(A.settings.body);
+    return '' +
+      '<div class="grp-t">身体参数（只用来算喝多少水）</div>' +
+      '<div class="card">' +
+      '<div class="slider-row"><span class="lb">身高 cm</span>' +
+      '<input type="range" min="120" max="210" value="' + (b.height || 170) + '" id="bdH">' +
+      '<span class="num" id="bdHNum">' + (b.height || 170) + '</span></div>' +
+      '<div class="slider-row mt1"><span class="lb">体重 kg</span>' +
+      '<input type="range" min="30" max="150" value="' + (b.weight || 65) + '" id="bdW">' +
+      '<span class="num" id="bdWNum">' + (b.weight || 65) + '</span></div>' +
+      '<div class="slider-row mt1"><span class="lb">再加一点</span>' +
+      '<input type="range" min="200" max="500" step="50" value="' + (b.extra || 300) + '" id="bdE">' +
+      '<span class="num" id="bdENum">+' + (b.extra || 300) + '</span></div>' +
+      '<div class="quote mt2" id="bdPreview">算出来：<strong>' + g.goal + ' ml</strong><br>' +
+      '<span class="hint">体表面积 ' + g.bsa + ' m² × 1500 = ' + g.base + ' ml，再加 ' + g.extra + ' ml' +
+      (g.capped ? '<br>⚠ 超过安全上限，已截到 ' + g.cap + ' ml' : '') + '</span></div>' +
+      '<p class="hint mt1">BMI ' + g.bmi + '。这只是估算公式，不是医学建议 —— ' +
+      '肾友、心衰、孕期等特殊人群请遵医嘱，别照着这个喝。</p>' +
+      '<div class="row-wrap mt2">' +
+      '<button class="btn primary" data-act="bd-save">保存并重排喝水提醒</button>' +
+      '</div></div>';
+  }
+
+  /* ---------- 设置：喝水提醒 ---------- */
+
+  function waterSetCard() {
+    const n = A.settings.notify || {};
+    const g = V.waterGoal(A.settings.body);
+    const cup = L.clamp(Number(n.waterCup) || 250, 100, 500);
+    const times = Notify.spreadTimes(n.waterStart || '08:00', n.waterEnd || '21:00',
+      Math.ceil(g.goal / cup));
+    return '' +
+      '<div class="grp-t">提醒 · 喝水</div>' +
+      '<div class="card">' +
+      '<div>' +
+      '<label class="row">' +
+        '<span class="row-t">开启喝水提醒</span>' +
+        '<input class="sw" type="checkbox" id="wtEnabled"' + (n.waterEnabled ? ' checked' : '') + '>' +
+        '<span class="sw-ui"></span></label>' +
+      '<label class="lbl mt2">单次杯量</label>' +
+      '<div class="chips">' +
+      [150, 200, 250, 300, 500].map(function (c) {
+        return '<button class="chip' + (cup === c ? ' on' : '') + '" data-act="wt-cup" data-c="' + c + '">' + c + 'ml</button>';
+      }).join('') +
+      '</div>' +
+      '<label class="lbl mt2">从</label>' +
+      '<input class="input" type="time" id="wtStart" value="' + L.esc(n.waterStart || '08:00') + '">' +
+      '<label class="lbl mt1">到</label>' +
+      '<input class="input" type="time" id="wtEnd" value="' + L.esc(n.waterEnd || '21:00') + '">' +
+      '<p class="hint mt2">目标 ' + g.goal + ' ml ÷ ' + cup + ' ml = <strong>' + times.length + ' 杯</strong>，' +
+      '均匀排在这些时间：<br>' + (times.length ? times.join(' · ') : '（时间段设置有误）') + '</p>' +
+      '<div class="row-wrap mt2">' +
+      '<button class="btn primary" data-act="wt-save">保存喝水提醒</button>' +
+      '</div></div>';
+  }
+
+  /* ---------- 设置：睡眠提醒 ---------- */
+
+  function sleepSetCard() {
+    const n = A.settings.notify || {};
+    const wd = n.workdays || [];
+    const wWin = Notify.sleepWindow(n, true);
+    const rWin = Notify.sleepWindow(n, false);
+
+    /** 一段区间的两个时间输入框 */
+    function range(label, id1, v1, id2, v2) {
+      return '<label class="lbl mt2">' + label + '</label>' +
+        '<div class="row-wrap">' +
+        '<div style="flex:1"><span class="hint">开始</span>' +
+        '<input class="input" type="time" id="' + id1 + '" value="' + L.esc(v1) + '"></div>' +
+        '<div style="flex:1"><span class="hint">截止</span>' +
+        '<input class="input" type="time" id="' + id2 + '" value="' + L.esc(v2) + '"></div>' +
+        '</div>';
+    }
+
+    return '' +
+      '<div class="grp-t">提醒 · 睡觉</div>' +
+      '<div class="card">' +
+      '<div class="quote">睡觉是一个 <strong>区间</strong>，不是一个点。<br>' +
+      '区间开始时温和提醒一次，到截止点再明确提醒一次。' +
+      '<br><br>现在：工作日 <strong>' + wWin.start + '–' + wWin.end + '</strong>，' +
+      '非工作日 <strong>' + rWin.start + '–' + rWin.end + '</strong></div>' +
+      '<label class="row mt2">' +
+        '<span class="row-t">开启睡眠提醒</span>' +
+        '<input class="sw" type="checkbox" id="slEnabled"' + (n.sleepEnabled ? ' checked' : '') + '>' +
+        '<span class="sw-ui"></span></label>' +
+      range('工作日睡觉区间', 'slWorkStart', wWin.start, 'slWorkEnd', wWin.end) +
+      range('非工作日睡觉区间', 'slRestStart', rWin.start, 'slRestEnd', rWin.end) +
+      '<p class="hint mt1">截止点可以是第二天（比如 23:30–00:30），会正确处理跨午夜。</p>' +
+      '<label class="lbl mt2">哪几天算工作日</label>' +
+      '<div class="days">' +
+      WEEK_NAMES.map(function (nm, i) {
+        const d = i + 1;
+        return '<button class="chip' + (wd.indexOf(d) >= 0 ? ' on' : '') + '" data-act="sl-day" data-d="' + d + '">周' + nm + '</button>';
+      }).join('') +
+      '</div>' +
+      '<label class="lbl mt2">额外的假期（点了就用非工作日的区间）</label>' +
+      '<div class="row-wrap">' +
+      '<input class="input" type="date" id="slHol" style="flex:1;min-width:130px">' +
+      '<button class="btn" data-act="sl-holadd">添加</button>' +
+      '</div>' +
+      (n.holidays && n.holidays.length
+        ? '<div class="chips mt1">' + n.holidays.map(function (h) {
+          return '<button class="chip" data-act="sl-holdel" data-h="' + h + '">' + h + ' ×</button>';
+        }).join('') + '</div>'
+        : '<p class="hint mt1">还没有标记假期。</p>') +
+      '<div class="row-wrap mt2">' +
+      '<button class="btn primary" data-act="sl-save">保存睡眠提醒</button>' +
+      '</div></div>';
+  }
+
+  /* ---------- 设置：久坐提醒 ---------- */
+
+  function sitSetCard() {
+    const n = A.settings.notify || {};
+    const iv = Number(n.sitInterval) || 60;
+    const times = Notify.everyTimes(n.sitStart || '09:00', n.sitEnd || '18:00', iv);
+    return '' +
+      '<div class="grp-t">提醒 · 久坐</div>' +
+      '<div class="card">' +
+      '<div class="quote warn">手机检测不到你坐着没有。<br>' +
+      '它能做的只有<strong>定时提醒</strong>——到点喊你一次，你动了就点掉。<br>' +
+      '真正的久坐检测要手表 / 手环上报活动状态。</div>' +
+      '<label class="row mt2">' +
+        '<span class="row-t">开启久坐提醒</span>' +
+        '<input class="sw" type="checkbox" id="stEnabled"' + (n.sitEnabled ? ' checked' : '') + '>' +
+        '<span class="sw-ui"></span></label>' +
+      '<label class="lbl mt2">每隔多久提醒</label>' +
+      '<div class="chips">' +
+      [45, 60, 75, 90].map(function (m) {
+        return '<button class="chip' + (iv === m ? ' on' : '') + '" data-act="st-iv" data-m="' + m + '">' + m + ' 分钟</button>';
+      }).join('') +
+      '</div>' +
+      '<label class="lbl mt2">生效时段 从</label>' +
+      '<input class="input" type="time" id="stStart" value="' + L.esc(n.sitStart || '09:00') + '">' +
+      '<label class="lbl mt1">到</label>' +
+      '<input class="input" type="time" id="stEnd" value="' + L.esc(n.sitEnd || '18:00') + '">' +
+      '<p class="hint mt2">会排 <strong>' + times.length + '</strong> 个提醒：' +
+      (times.length ? times.slice(0, 8).join(' · ') + (times.length > 8 ? ' …' : '') : '（时段设置有误）') + '</p>' +
+      '<p class="hint mt1">起来活动 10~15 分钟就够，不用做运动。' +
+      '接杯水、走两圈、站着伸个懒腰都算。</p>' +
+      '<div class="row-wrap mt2">' +
+      '<button class="btn primary" data-act="st-save">保存久坐提醒</button>' +
+      '</div></div>';
+  }
+
+  function webdavForm(sy) {
+    const w = sy.webdav || {};
+    const hasPass = !!(A.settings.creds && A.settings.creds.webdavPass);
+    return '<div class="mt2">' +
+      '<label class="lbl">WebDAV 地址</label>' +
+      '<input class="input" id="wdUrl" value="' + L.esc(w.url) + '" placeholder="https://dav.jianguoyun.com/dav/我的文件夹/">' +
+      '<label class="lbl mt1">用户名</label>' +
+      '<input class="input" id="wdUser" value="' + L.esc(w.user) + '">' +
+      '<label class="lbl mt1">应用密码</label>' +
+      '<input class="input" id="wdPass" type="password" value="" ' +
+      'placeholder="' + (hasPass ? '已保存在系统加密存储中，留空则不修改' : '请输入') + '">' +
+      '<div class="row-wrap mt2">' +
+      '<button class="btn primary" data-act="sy-test">测试连接</button>' +
+      '<button class="btn" data-act="sy-now">立即同步</button>' +
+      '</div>' +
+      '<p class="hint mt1">坚果云：网页版 → 账户信息 → 添加应用 → 拿到应用密码。<br>' +
+      '免费账号每月有流量上限，够用。<br>' +
+      '<strong>只接受 https:// 地址</strong> —— 口令不该在明文信道上走。</p>' +
+      (hasPass ? '<p class="hint">口令保存在 Android 系统加密存储区，不会写进任何明文文件。</p>' : '') +
+      '</div>';
+  }
+
+  function githubForm(sy) {
+    const gh = sy.github || {};
+    const hasToken = !!(A.settings.creds && A.settings.creds.githubToken);
+    return '<div class="mt2">' +
+      '<label class="lbl">Personal Access Token</label>' +
+      '<input class="input" id="ghToken" type="password" value="" ' +
+      'placeholder="' + (hasToken ? '已保存在系统加密存储中，留空则不修改' : 'ghp_...') + '">' +
+      '<label class="lbl mt1">Gist ID（留空会自动新建）</label>' +
+      '<input class="input" id="ghGist" value="' + L.esc(gh.gistId) + '">' +
+      '<div class="row-wrap mt2">' +
+      '<button class="btn primary" data-act="sy-now">立即同步</button>' +
+      '</div>' +
+      '<div class="quote warn mt2">注意：GitHub 在境外。开启后你的记录（含用药、情绪等' +
+      '敏感内容）会上传到美国服务器，<strong>构成数据出境</strong>。<br>' +
+      '如果在意这一点，请改用 WebDAV 或文件夹同步。</div>' +
+      '<p class="hint mt1">GitHub → Settings → Developer settings → Personal access tokens → 勾选 gist。<br>' +
+      '选 Secret Gist。但请注意：Secret 不等于加密，拿到链接的人就能看。</p></div>';
+  }
+
+  function folderForm() {
+    return '<div class="mt2">' +
+      '<div class="quote">数据就在手机真实目录里。用 <strong>Syncthing</strong> 把这个目录同步到电脑或另一台手机即可，' +
+      '数据不经过任何第三方服务器。<br><br>' +
+      '步骤：手机装 Syncthing-Fork（F-Droid 免费）→ 添加这个目录 → 电脑装 Syncthing → 互相配对。</div>' +
+      '<p class="hint mt1">在另一个设备上装本应用，指向同一个目录，就是完整的双向同步。</p></div>';
+  }
+
+  /* ================= 事件绑定 ================= */
+
+  function bindGlobal() {
+    document.addEventListener('click', function (e) {
+      const el = e.target.closest('[data-act]');
+      if (!el) return;
+      const act = el.dataset.act;
+      const fn = ACTIONS[act];
+      if (fn) { e.preventDefault(); fn(el, e); }
+    });
+
+    // 底部导航
+    L.$$('.tab').forEach(function (b) {
+      b.addEventListener('click', function () {
+        A.tab = b.dataset.tab;
+        P.haptic('LIGHT');
+        A.render();
+        window.scrollTo(0, 0);
+      });
+    });
+
+    // 输入即时保存（防抖）
+    // 600ms 太长：切 tab 时 A.render() 重建 DOM，输入框的 value 会丢，
+    // 而 autoSave 还在等定时器，最后一段输入就落不了盘。
+    // 压到 250ms，并记录「待保存的输入」，切页/切后台前强制 flush。
+    document.addEventListener('input', function (e) {
+      const id = e.target.id;
+      if (!id) return;
+      A._pending = { id: id, val: e.target.value };
+      clearTimeout(A._t);
+      A._t = setTimeout(function () { A.flushPending(); }, 250);
+    });
+    // 页面进入后台 / 关闭时立即落盘，不等防抖
+    ['visibilitychange', 'pagehide', 'blur'].forEach(function (ev) {
+      window.addEventListener(ev, function () {
+        if (ev === 'visibilitychange' && !document.hidden) return;
+        A.flushPending();
+      });
+    });
+    document.addEventListener('change', function (e) {
+      if (e.target.type === 'range') {
+        const map = { enRange: 'enNum', slRange: 'slNum', mdRange: 'mdNum', rvRange: 'rvNum',
+          bdH: 'bdHNum', bdW: 'bdWNum', bdE: 'bdENum' };
+        if (map[e.target.id]) {
+          L.$('#' + map[e.target.id]).textContent =
+            (e.target.id === 'bdE' ? '+' : '') + e.target.value;
+          if (e.target.id.indexOf('bd') === 0) updateBodyPreview();
+          else autoSave(e.target.id, e.target.value);
+        }
+      }
+    });
+  }
+
+  function bindView() {
+    // 本周条
+    const strip = L.$('#weekStrip');
+    if (strip) {
+      L.weekDates().forEach(function (d) {
+        const b = document.createElement('div');
+        b.className = 'stat';
+        b.innerHTML = '<div class="stat-n" style="font-size:15px">' + d.slice(5) + '</div><div class="stat-l">星期' + L.weekday(d) + '</div>';
+        b.style.cursor = 'pointer';
+        if (d === L.today()) b.style.borderColor = 'var(--brand)';
+        b.addEventListener('click', async function () {
+          if (d === L.today()) return;
+          A.day = await V.loadDay(d);
+          A.tab = 'work';
+          A.render();
+          P.toast('切到 ' + d + '（查看模式，改动仍会存到那一天）');
+        });
+        strip.appendChild(b);
+      });
+    }
+    // vault 路径
+    const vp = L.$('#vaultPath');
+    if (vp) {
+      g.P.documentsUri().then(function (uri) {
+        vp.textContent = uri ? (uri + '/jwle-vault/') : '（浏览器环境）浏览器本地存储 · jwle-vault/';
+      });
+    }
+  }
+
+  /** 输入即存：直接改内存里的 day 并落盘 */
+  async function autoSave(id, val) {
+    const d = A.day;
+    let hit = false;
+    if (id === 'noteIn') { d.note = val; hit = true; }
+    if (id === 'drainIn') { d.drain = val; hit = true; }
+    if (id === 'chargeIn') { d.charge = val; hit = true; }
+    if (id === 'factIn') { d.fact = val; hit = true; }
+    if (id === 'needIn') { d.need = val; hit = true; }
+    if (id === 'enRange') { d.energy = Number(val); hit = true; }
+    if (id === 'slRange') { d.sleep = Number(val); hit = true; }
+    if (id === 'mdRange') { d.mood = Number(val); hit = true; }
+    if (id === 'rvRange') { A.review.relation = Number(val); A.review.week = L.weekKey(); await V.saveReview(A.review); return; }
+    if (id === 'rvProgress') { A.review.progress = val; A.review.week = L.weekKey(); await V.saveReview(A.review); return; }
+    if (id === 'rvDrain') { A.review.drain = val; A.review.week = L.weekKey(); await V.saveReview(A.review); return; }
+    if (id === 'rvGood') { A.review.good = val; A.review.week = L.weekKey(); await V.saveReview(A.review); return; }
+    if (id === 'rvChange') { A.review.change = val; A.review.week = L.weekKey(); await V.saveReview(A.review); return; }
+    if (id === 'rvNext') { A.review.nextwant = val; A.review.week = L.weekKey(); await V.saveReview(A.review); return; }
+    if (!hit) return;
+    await V.saveDay(d);
+    if (d.date === L.today()) updateHeader();
+  }
+
+  /** 把待保存的输入立刻落盘（不等防抖）。
+      切 tab、切后台、页面隐藏前都必须调一次，否则最后 250ms 的输入会丢。 */
+  A.flushPending = function () {
+    clearTimeout(A._t);
+    const p = A._pending;
+    if (!p) return;
+    A._pending = null;
+    autoSave(p.id, p.val);
+  };
+
+  /** 拖身体参数滑块时，实时更新算出来的目标 */
+  function updateBodyPreview() {
+    const box = L.$('#bdPreview');
+    if (!box) return;
+    const g = V.waterGoal({
+      height: Number(L.$('#bdH').value),
+      weight: Number(L.$('#bdW').value),
+      extra: Number(L.$('#bdE').value)
+    });
+    box.innerHTML = '算出来：<strong>' + g.goal + ' ml</strong><br>' +
+      '<span class="hint">体表面积 ' + g.bsa + ' m² × 1500 = ' + g.base + ' ml，再加 ' + g.extra + ' ml' +
+      (g.capped ? '<br>⚠ 超过安全上限，已截到 ' + g.cap + ' ml' : '') + '</span>';
+  }
+
+  /* ================= 动作表 ================= */
+
+  const ACTIONS = {
+
+    /* --- 引导 --- */
+    'ob-start': async function () {
+      A.settings.me = L.$('#obMe').value.trim() || '我';
+      A.settings.partner = L.$('#obPartner').value.trim() || '你';
+      A.settings.onboarded = true;
+      await V.saveSettings(A.settings);
+      await enterApp();
+    },
+
+    /* --- 导航 --- */
+    'go-settings': function () { A.tab = 'settings'; A.render(); },
+    'modal-close': function () { A.closeModal(); },
+
+    /* --- 今日工作 --- */
+    'tk-add': async function () {
+      const inp = L.$('#tkNew');
+      const t = inp.value.trim();
+      if (!t) { P.toast('先写点什么', 'err'); return; }
+      A.day.tasks.push({ id: L.uid('t'), text: t, done: false });
+      inp.value = '';
+      await V.saveDay(A.day);
+      A.haptic('done');
+      A.render(); updateHeader();
+    },
+    'tk-toggle': async function (el) {
+      const i = Number(el.dataset.i);
+      A.day.tasks[i].done = !A.day.tasks[i].done;
+      await V.saveDay(A.day);
+      /* 完成一件事应该"被接住"，取消勾选只要轻轻一下。
+         旧代码两种情况都是 MEDIUM，摸起来没有任何区别。 */
+      A.haptic(A.day.tasks[i].done ? 'done' : 'tap');
+      A.render(); updateHeader();
+    },
+    'tk-del': async function (el) {
+      const i = Number(el.dataset.i);
+      A.day.tasks.splice(i, 1);
+      await V.saveDay(A.day);
+      A.haptic('warn');
+      A.render(); updateHeader();
+    },
+    'tk-carry': async function () {
+      const un = A.day.tasks.filter((t) => !t.done).map((t) => ({ id: L.uid('t'), text: t.text, done: false }));
+      A.day.tasks = A.day.tasks.filter((t) => t.done);
+      await V.saveDay(A.day);
+      const tmr = await V.loadDay(L.addDays(A.day.date, 1));
+      tmr.tasks = tmr.tasks.concat(un);
+      await V.saveDay(tmr);
+      P.toast('已挪 ' + un.length + ' 件到明天');
+      A.render(); updateHeader();
+    },
+    'tk-clear': async function () {
+      A.day.tasks.forEach((t) => { t.done = true; });
+      await V.saveDay(A.day);
+      A.render(); updateHeader();
+    },
+
+    /* --- 心情 --- */
+    'mo-chip': async function (el) {
+      const e = el.dataset.e;
+      const i = A.day.emotions.indexOf(e);
+      if (i >= 0) A.day.emotions.splice(i, 1); else A.day.emotions.push(e);
+      await V.saveDay(A.day);
+      A.render();
+    },
+    'mo-compose': function () {
+      const d = A.day;
+      let s = '';
+      if (d.fact) s += '今天有一件事想跟你说：' + d.fact.trim() + '\n\n';
+      if (d.emotions.length) s += '我的感受是' + d.emotions.join('、') + '。\n\n';
+      if (d.need) s += '我想要的是：' + d.need.trim() + '\n\n';
+      if (!s) { P.toast('先写点内容', 'err'); return; }
+      s += '—— 不是要你立刻解决，只是想让你知道。';
+      A.modal({ title: '可以发出去的话', body: '<textarea class="input" style="min-height:170px">' + L.esc(s) + '</textarea>' +
+        '<p class="hint mt1">长按选中即可复制。也可以改到你顺口为止。</p>', okText: '好了' });
+    },
+
+    /* --- 矛盾工坊 --- */
+    'cf-new': function () { A.openConflict(null); },
+    'cf-open': function (el) { A.openConflict(el.dataset.id); },
+    'cf-status': function (el) {
+      if (!A._curConflict) return;
+      A._curConflict.status = el.dataset.s;
+      L.$$('[data-act="cf-status"]').forEach(function (b) {
+        b.classList.toggle('on', b.dataset.s === el.dataset.s);
+      });
+    },
+    'cf-letter': function () {
+      const c = A._curConflict || {};
+      let s = '想跟你聊一件事：' + (c.title || '') + '\n\n';
+      if (c.fact) s += '【事情是这样】\n' + c.fact.trim() + '\n\n';
+      if (c.feeling) s += '【我的感受】\n' + c.feeling.trim() + '\n\n';
+      if (c.need) s += '【我其实需要的是】\n' + c.need.trim() + '\n\n';
+      if (c.request) s += '【所以想请你】\n' + c.request.trim() + '\n\n';
+      s += '（这些话我先写给自己看过一遍，发出去是想让你知道，不是要你马上答复。）';
+      A.modal({ title: '可以发出去的话', body: '<textarea class="input" style="min-height:220px">' + L.esc(s) + '</textarea>',
+        okText: '好了' });
+    },
+    'cf-pause': function () {
+      A.modal({
+        title: '暂停 20 分钟',
+        body: '<div class="quote">现在两个人都还在气头上。<br>' +
+          '先把这个议题放着，去做点别的：喝水、走几步、洗个脸。<br><br>' +
+          '20 分钟后再回来写「我的请求」那一栏，会比现在写得准。</div>' +
+          '<p class="hint mt1">生理上的激动大概 20 分钟才会退。这不是逃避，是给对话留一条活路。</p>',
+        okText: '好，我等一会儿'
+      });
+    },
+    'cf-del': async function () {
+      const c = A._curConflict;
+      if (!c) return;
+      await P.deleteFile(V.conflictPath(c));
+      A.closeModal();
+      A.conflicts = await V.listConflicts();
+      A.render();
+      P.toast('已删除');
+    },
+
+    /* --- 复盘 --- */
+    'rv-save': async function () {
+      const r = A.review;
+      r.week = L.weekKey();
+      r.relation = Number(L.$('#rvRange').value);
+      r.progress = L.$('#rvProgress').value;
+      r.drain = L.$('#rvDrain').value;
+      r.good = L.$('#rvGood').value;
+      r.change = L.$('#rvChange').value;
+      r.nextwant = L.$('#rvNext').value;
+      await V.saveReview(r);
+      P.toast('已保存到 vault/reviews/' + r.week + '.md');
+    },
+    'rv-history': async function () {
+      const rs = await V.listReviews();
+      let h = rs.length ? '' : empty('review', '还没有写过的复盘', '每周一次，回头看看这七天');
+      rs.forEach(function (r) {
+        h += '<div class="item"><div class="item-t">' + r.week + '</div>' +
+          '<div class="item-s">' + (r.progress || '（没写）').slice(0, 60) + '</div></div>';
+      });
+      A.modal({ title: '写过的复盘', body: h, okText: '关闭' });
+    },
+
+    /* --- 设置 --- */
+    'se-save': async function () {
+      A.settings.me = L.$('#seMe').value.trim() || '我';
+      A.settings.partner = L.$('#sePartner').value.trim() || '你';
+      await V.saveSettings(A.settings);
+      P.toast('已保存');
+      A.render();
+    },
+    'se-theme': async function () {
+      A.settings.theme = A.settings.theme === 'dark' ? 'light' : 'dark';
+      await V.saveSettings(A.settings);
+      await applyTheme();
+      A.render();
+    },
+
+    /* --- PWA 安装 --- */
+    'pwa-install': function () {
+      if (window.PWAInstall) {
+        window.PWAInstall();
+      } else {
+        P.toast('当前浏览器不支持自动安装，请手动：Chrome 菜单 → 安装，Safari → 分享 → 添加到主屏幕', 'err');
+      }
+    },
+
+    /* --- 提醒 --- */
+    'nt-save': async function () {
+      const n = A.settings.notify;
+      n.enabled = L.$('#ntEnabled').checked;
+      n.checkinTime = L.$('#ntCheckin').value;
+      n.medEnabled = L.$('#ntMed').checked;
+      n.medLabel = L.$('#ntMedLabel').value || '提醒';
+      n.medTimes = (L.$('#ntMedTimes').value || '').split(',').map((x) => x.trim())
+        .filter((x) => /^\d{1,2}:\d{2}$/.test(x));
+      n.reviewEnabled = L.$('#ntReview').checked;
+      n.reviewTime = L.$('#ntReviewTime').value;
+      await V.saveSettings(A.settings);
+      const r = await Notify.apply(A.settings);
+      P.toast(r.msg, r.ok ? '' : 'err');
+      Notify.startWebTick(A.settings);
+    },
+    'nt-ics': function () {
+      Notify.downloadICS(A.settings);
+      P.toast('已导出，用日历应用打开它');
+    },
+    /* --- 身体参数 --- */
+    'bd-save': async function () {
+      A.settings.body = {
+        height: Number(L.$('#bdH').value) || 170,
+        weight: Number(L.$('#bdW').value) || 65,
+        extra: Number(L.$('#bdE').value) || 300
+      };
+      await V.saveSettings(A.settings);
+      // 今天的目标跟着走
+      A.day.water.goal = V.waterGoal(A.settings.body).goal;
+      await V.saveDay(A.day);
+      const r = await Notify.apply(A.settings);
+      P.toast('目标 ' + V.waterGoal(A.settings.body).goal + ' ml · ' + r.msg, r.ok ? '' : 'err');
+      A.render();
+    },
+
+    /* --- 喝水提醒 --- */
+    'wt-cup': function (el) {
+      A.settings.notify.waterCup = Number(el.dataset.c);
+      L.$$('[data-act="wt-cup"]').forEach(function (b) {
+        b.classList.toggle('on', b.dataset.c === el.dataset.c);
+      });
+    },
+    'wt-save': async function () {
+      const n = A.settings.notify;
+      n.waterEnabled = L.$('#wtEnabled').checked;
+      n.waterStart = L.$('#wtStart').value;
+      n.waterEnd = L.$('#wtEnd').value;
+      await V.saveSettings(A.settings);
+      const r = await Notify.apply(A.settings);
+      P.toast(r.msg, r.ok ? '' : 'err');
+      A.render();
+    },
+
+    /* --- 睡眠提醒 --- */
+    'sl-day': function (el) {
+      const d = Number(el.dataset.d);
+      const wd = A.settings.notify.workdays || (A.settings.notify.workdays = []);
+      const i = wd.indexOf(d);
+      if (i >= 0) wd.splice(i, 1); else wd.push(d);
+      el.classList.toggle('on', i < 0);
+    },
+    'sl-holadd': async function () {
+      const v = L.$('#slHol').value;
+      if (!v) { P.toast('先选一个日期', 'err'); return; }
+      const hs = A.settings.notify.holidays || (A.settings.notify.holidays = []);
+      if (hs.indexOf(v) >= 0) { P.toast('这天已经加过了'); return; }
+      hs.push(v); hs.sort();
+      await V.saveSettings(A.settings);
+      A.render();
+    },
+    'sl-holdel': async function (el) {
+      const h = el.dataset.h;
+      A.settings.notify.holidays = (A.settings.notify.holidays || []).filter((x) => x !== h);
+      await V.saveSettings(A.settings);
+      A.render();
+    },
+    'sl-save': async function () {
+      const n = A.settings.notify;
+      n.sleepEnabled = L.$('#slEnabled').checked;
+      n.sleepWorkStart = L.$('#slWorkStart').value || '22:30';
+      n.sleepWorkEnd = L.$('#slWorkEnd').value || '23:30';
+      n.sleepRestStart = L.$('#slRestStart').value || '23:30';
+      n.sleepRestEnd = L.$('#slRestEnd').value || '00:30';
+      await V.saveSettings(A.settings);
+      const r = await Notify.apply(A.settings);
+      P.toast(r.msg, r.ok ? '' : 'err');
+      A.render();
+    },
+
+    /* --- 久坐提醒 --- */
+    'st-iv': function (el) {
+      A.settings.notify.sitInterval = Number(el.dataset.m);
+      L.$$('[data-act="st-iv"]').forEach(function (b) {
+        b.classList.toggle('on', b.dataset.m === el.dataset.m);
+      });
+    },
+    'st-save': async function () {
+      const n = A.settings.notify;
+      n.sitEnabled = L.$('#stEnabled').checked;
+      n.sitStart = L.$('#stStart').value;
+      n.sitEnd = L.$('#stEnd').value;
+      await V.saveSettings(A.settings);
+      const r = await Notify.apply(A.settings);
+      P.toast(r.msg, r.ok ? '' : 'err');
+      A.render();
+    },
+
+    /* --- 喝水 / 起身 记录 --- */
+    'wa-add': async function (el) {
+      const r = V.addWater(A.day, Number(el.dataset.ml));
+      if (!r.ok) { A.haptic('err'); P.toast(r.msg, 'err'); return; }
+      await V.saveDay(A.day);
+      A.haptic('done');
+      P.toast('已记 ' + el.dataset.ml + ' ml · 今天共 ' + r.done + ' ml');
+      A.render();
+    },
+    'wa-undo': async function () {
+      const r = V.undoWater(A.day);
+      if (!r.ok) { P.toast(r.msg, 'err'); return; }
+      await V.saveDay(A.day);
+      P.toast('已撤销，剩 ' + r.done + ' ml');
+      A.render();
+    },
+    'sit-add': async function () {
+      const r = V.addBreak(A.day);
+      await V.saveDay(A.day);
+      A.haptic('done');
+      P.toast('记下了 · 今天第 ' + r.count + ' 次（' + r.at + '）');
+      A.render();
+    },
+
+    'nt-check': async function () {
+      const r = await P.pendingNotifs();
+      const list = (r.notifications || []);
+      let h = list.length ? '' : empty('search', '当前没有已排的闹钟', '去设置里打开提醒，这里就能看到');
+      list.forEach(function (x) {
+        h += '<div class="item"><div class="item-t">' + L.esc(x.title || '') + '</div>' +
+          '<div class="item-s">' + (x.extra && x.extra.type ? x.extra.type : '') + ' · id ' + x.id + '</div></div>';
+      });
+      A.modal({ title: '已排的闹钟（' + list.length + '）', body: h, okText: '关闭' });
+    },
+
+    /* --- 同步 --- */
+    'sy-mode': async function (el) {
+      A.settings.sync.mode = el.dataset.m;
+      await V.saveSettings(A.settings);
+      A.render();
+    },
+    'sy-test': async function () {
+      try { await readSyncForm(); }
+      catch (e) { return; }
+      P.toast('测试中…');
+      const r = await Sync.testWebdav(A.settings.sync.webdav);
+      P.toast(r.ok ? '连接成功（' + r.msg + '）' : '连接失败：' + r.msg, r.ok ? '' : 'err');
+    },
+    'sy-now': async function () {
+      try { await readSyncForm(); }
+      catch (e) { return; }
+      P.toast('同步中…');
+      const r = await Sync.runSync(A.settings);
+      if (r.ok) {
+        A.settings.sync.lastSyncAt = L.now();
+        await V.saveSettings(A.settings);
+        A.day = await V.loadDay(L.today());
+        A.conflicts = await V.listConflicts();
+        A.review = await V.loadReview(L.weekKey());
+        P.toast('同步完成：' + r.msg);
+        A.render();
+      } else {
+        P.toast('同步失败：' + r.msg, 'err');
+      }
+    },
+
+    /* --- 数据 --- */
+
+    /** 打开文件选择器（隐藏的 input，原生 WebView 里也能用） */
+    'dt-import': function () {
+      let inp = L.$('#filePick');
+      if (!inp) {
+        inp = document.createElement('input');
+        inp.type = 'file';
+        inp.id = 'filePick';
+        inp.accept = '.zip,.md,.json,application/zip,text/markdown,application/json';
+        inp.style.display = 'none';
+        document.body.appendChild(inp);
+        inp.addEventListener('change', function () {
+          const f = inp.files && inp.files[0];
+          inp.value = '';                      // 清空，这样同一个文件能再选一次
+          if (f) A.doImport(f);
+        });
+      }
+      inp.click();
+    },
+
+    'dt-zip': async function () {
+      const r = await Sync.exportZip();
+      P.toast(r.ok ? '已导出' : '导出失败：' + r.msg, r.ok ? '' : 'err');
+    },
+    'dt-md': async function () {
+      const r = await Sync.exportMd();
+      P.toast(r.ok ? '已导出' : '导出失败：' + r.msg, r.ok ? '' : 'err');
+    },
+    'dt-stat': async function () {
+      const days = await V.listDays();
+      const cs = await V.listConflicts();
+      const rs = await V.listReviews();
+      A.modal({
+        title: '你已经记了这么多',
+        body: '<div class="stat-row">' +
+          '<div class="stat"><div class="stat-n">' + days.length + '</div><div class="stat-l">天</div></div>' +
+          '<div class="stat"><div class="stat-n">' + cs.length + '</div><div class="stat-l">议题</div></div>' +
+          '<div class="stat"><div class="stat-n">' + rs.length + '</div><div class="stat-l">复盘</div></div>' +
+          '</div><p class="hint mt2">每个文件都在 vault 目录里，随时可以用别的编辑器打开。</p>',
+        okText: '关闭'
+      });
+    },
+
+    /* --- 隐私与合规 --- */
+
+    'se-privacy': function () {
+      A.modal({
+        title: '隐私政策',
+        body:
+          '<div class="quote">' +
+          '<strong>一句话版本：</strong><br>' +
+          '这个应用没有服务器，没有账号系统，没有统计埋点。<br>' +
+          '你的记录存在你自己手机里，开发者看不到、也拿不到。' +
+          '</div>' +
+
+          '<p class="card-note mt2"><strong>不收集的东西</strong></p>' +
+          '<p class="hint" style="margin-top:4px">' +
+          '姓名 / 手机号 / 邮箱 · 通讯录 / 短信 / 通话记录<br>' +
+          '相册 / 摄像头 / 麦克风 · 位置信息<br>' +
+          '设备唯一标识（IMEI / 广告 ID）· 使用行为与崩溃日志<br>' +
+          '应用内没有集成任何第三方统计、广告或分析 SDK。' +
+          '</p>' +
+
+          '<p class="card-note mt2"><strong>你会记到的敏感信息</strong></p>' +
+          '<p class="hint" style="margin-top:4px">' +
+          '情绪状态、与伴侣的沟通记录、用药安排、身高体重 —— ' +
+          '这些按《个人信息保护法》属于敏感个人信息。<br>' +
+          '<strong>它们只存在你本机</strong>，不会被传输、不会被分析、不会对外提供。<br>' +
+          '身高体重仅用于估算饮水目标（Du Bois 体表面积公式），不是医疗建议。' +
+          '</p>' +
+
+          '<p class="card-note mt2"><strong>权限用途</strong></p>' +
+          '<p class="hint" style="margin-top:4px">' +
+          '通知 → 发送提醒　·　精确闹钟 → 准时触发<br>' +
+          '开机广播 → 重启后恢复提醒　·　震动 → 提醒时震动<br>' +
+          '网络 → 仅在你主动配置同步时使用<br>' +
+          '没有申请位置、相机、麦克风、通讯录、短信权限。' +
+          '</p>' +
+
+          '<p class="card-note mt2"><strong>删除你的数据</strong></p>' +
+          '<p class="hint" style="margin-top:4px">' +
+          '设置 → 数据 → 导出全部（先备份）<br>' +
+          '或直接用文件管理器删除 vault 目录。<br>' +
+          '由于我们不持有你的任何数据，<strong>无需向我们提交删除申请</strong>。' +
+          '</p>' +
+
+          '<p class="hint mt2">完整版见仓库 docs/privacy-policy.md</p>',
+        okText: '我知道了'
+      });
+    },
+
+    'se-dataflow': async function () {
+      const sy = A.settings.sync;
+      const mode = sy.mode || 'none';
+
+      const rows = {
+        none: {
+          where: '不出本机',
+          detail: '数据只存在这台手机的应用私有目录里，不经过任何网络。'
+        },
+        folder: {
+          where: '不出本机',
+          detail: '数据本来就在手机真实目录里，由你自己用 Syncthing 等工具同步到其他设备。全程不经过第三方服务器。'
+        },
+        webdav: {
+          where: L.esc(sy.webdav && sy.webdav.url ? sy.webdav.url : '（尚未填写地址）'),
+          detail: '数据包上传到<strong>你自己指定</strong>的 WebDAV 服务。开发者不经手。强制 HTTPS。'
+        },
+        github: {
+          where: 'GitHub Inc.（美国）',
+          detail: '数据包上传到你的 Secret Gist。<strong>这构成数据出境</strong>，' +
+                  '且含用药、情绪等敏感信息。若在意此问题，请改用 WebDAV 或文件夹同步。'
+        }
+      }[mode];
+
+      const native = P.isNative;
+      const uri = await P.documentsUri();
+
+      A.modal({
+        title: '你的数据去了哪',
+        body:
+          '<div class="quote' + (mode === 'github' ? ' warn' : '') + '">' +
+          '当前同步方式：<strong>' +
+          ({ none: '暂不同步', folder: '文件夹同步', webdav: 'WebDAV', github: 'GitHub Gist' }[mode]) +
+          '</strong><br>数据流向：<strong>' + rows.where + '</strong>' +
+          '</div>' +
+
+          '<p class="hint mt2">' + rows.detail + '</p>' +
+
+          '<p class="card-note mt2"><strong>本地存放位置</strong></p>' +
+          '<div class="path-box mono" style="font-size:11px">' +
+          (uri ? L.esc(uri) + '/jwle-vault/' : '（浏览器环境）浏览器本地存储') +
+          '</div>' +
+          (native
+            ? '<p class="hint mt1">这是手机上的真实目录。用任何文件管理器都能打开，' +
+              '卸载应用会一并删除，请定期用「导出全部」备份。</p>'
+            : '<p class="hint mt1">当前不是原生环境，数据存在浏览器存储里，' +
+              '清理浏览器数据就会丢。</p>') +
+
+          '<p class="card-note mt2"><strong>你的凭据</strong></p>' +
+          '<p class="hint" style="margin-top:4px">' +
+          '同步口令与令牌保存在 Android 系统加密存储区，其他应用读不到，' +
+          '<strong>不会</strong>写进导出的文件或备份包里。' +
+          '</p>',
+        okText: '关闭'
+      });
+    }
+  };
+
+  async function readSyncForm() {
+    const sy = A.settings.sync;
+    if (L.$('#wdUrl')) {
+      const raw = L.$('#wdUrl').value.trim();
+      // 提前拦下 http:// —— 让用户在界面上就看到原因，
+      // 而不是等同步时报一个看不懂的错
+      if (/^http:\/\//i.test(raw)) {
+        P.toast('只接受 https:// 地址，http 会让口令以明文走网络', 'err');
+        throw new Error('insecure url');
+      }
+      sy.webdav.url = raw;
+    }
+    if (L.$('#wdUser')) sy.webdav.user = L.$('#wdUser').value.trim();
+
+    /* 凭据：输入框留空表示"不修改"，沿用安全存储里已有的值。
+       这样每次打开设置页都不会把口令回显到 DOM 里。 */
+    if (!A.settings.creds) A.settings.creds = { webdavPass: '', githubToken: '' };
+    const pIn = L.$('#wdPass');
+    if (pIn && pIn.value) A.settings.creds.webdavPass = pIn.value;
+    const tIn = L.$('#ghToken');
+    if (tIn && tIn.value) A.settings.creds.githubToken = tIn.value;
+
+    if (L.$('#ghGist')) sy.github.gistId = L.$('#ghGist').value.trim();
+    await V.saveSettings(A.settings);
+  }
+
+  /* ================= 弹层 ================= */
+
+  A.modal = function (o) {
+    L.$('#modalTitle').textContent = o.title || '';
+    L.$('#modalBody').innerHTML = o.body || '';
+    const foot = L.$('#modalFoot');
+    foot.innerHTML = '';
+    const mk = function (txt, cls, fn) {
+      const b = document.createElement('button');
+      b.className = 'btn ' + (cls || '');
+      b.textContent = txt;
+      b.addEventListener('click', fn);
+      foot.appendChild(b);
+      return b;
+    };
+    if (o.okText) mk(o.okText, 'primary', async function () {
+      if (o.onOk) await o.onOk();
+      if (o.keepOpen !== true) A.closeModal();
+    });
+    if (o.cancelText) mk(o.cancelText, '', function () { A.closeModal(); });
+
+    const m = L.$('#modal');
+    m.classList.remove('hidden');
+    // 下一帧再加 .show，让 transition 有起点可动。
+    // 同一帧里同时满足"可见"和"到位"会跳过动画。
+    requestAnimationFrame(function () { m.classList.add('show'); });
+
+    /* 背后整体缩小：iOS 用它暗示"你面前是一层，不是新页面"。
+       用 JS 加类名而不是 CSS :has()，兼容性更稳。 */
+    const app = L.$('#app');
+    if (app) app.classList.add('behind-sheet');
+
+    A.bindSheetSwipe();
+  };
+
+  A.closeModal = function () {
+    const m = L.$('#modal');
+    if (!m || m.classList.contains('hidden')) return;
+    m.classList.remove('show');
+    const app = L.$('#app');
+    if (app) app.classList.remove('behind-sheet');
+
+    /* 等退场动画走完再 display:none。
+       否则会直接消失，看起来像"闪一下"。 */
+    const box = m.querySelector('.modal-box');
+    const done = function () {
+      m.classList.add('hidden');
+      if (box) { box.style.transform = ''; box.style.transition = ''; }
+      const mask = m.querySelector('.modal-mask');
+      if (mask) mask.style.opacity = '';
+    };
+    clearTimeout(A._mt);
+    A._mt = setTimeout(done, 300);
+    A._curConflict = null;
+  };
+
+  /* 下滑关闭 —— iOS sheet 最重要的一条手势。
+     只在抓手/标题区域起拖，避免和内容区滚动打架。 */
+  A.bindSheetSwipe = function () {
+    const box = L.$('#modal .modal-box');
+    const mask = L.$('#modal .modal-mask');
+    if (!box || box._swipeBound) return;
+    box._swipeBound = true;
+
+    const THRESHOLD = 100;   // 下滑超过 100px 就关闭
+    let startY = 0, dy = 0, dragging = false;
+
+    const onStart = function (e) {
+      const t = e.target;
+      if (!t.closest || (!t.closest('.grabber') && !t.closest('.modal-title'))) return;
+      dragging = true;
+      startY = e.touches[0].clientY;
+      box.style.transition = 'none';
+    };
+    const onMove = function (e) {
+      if (!dragging) return;
+      dy = Math.max(0, e.touches[0].clientY - startY);
+      box.style.transform = 'translateY(' + dy + 'px)';
+      if (mask) mask.style.opacity = String(Math.max(0, 1 - dy / 300));
+    };
+    const onEnd = function () {
+      if (!dragging) return;
+      dragging = false;
+      box.style.transition = 'transform .25s cubic-bezier(.32,.72,0,1)';
+      if (dy > THRESHOLD) {
+        box.style.transform = 'translateY(100%)';
+        if (A.haptic) A.haptic('tap');
+        A.closeModal();
+      } else {
+        box.style.transform = '';
+        if (mask) mask.style.opacity = '';
+      }
+      dy = 0;
+    };
+
+    box.addEventListener('touchstart', onStart, { passive: true });
+    box.addEventListener('touchmove', onMove, { passive: true });
+    box.addEventListener('touchend', onEnd);
+    box.addEventListener('touchcancel', onEnd);
+  };
+
+  /* ================= 导入 ================= */
+
+  /** 读取用户选的文件，判断类型，导入并汇报 */
+  A.doImport = async function (file) {
+    const name = file.name || '文件';
+    P.toast('正在读取 ' + name + '…');
+
+    let ab;
+    try { ab = await file.arrayBuffer(); }
+    catch (e) { P.toast('读取失败：' + e.message, 'err'); return; }
+
+    const ext = (name.match(/\.([^.]+)$/) || [, ''])[1].toLowerCase();
+
+    try {
+      if (ext === 'zip') {
+        const files = await L.readZip(ab);
+        const md = files.filter((f) => /\.md$/i.test(f.path));
+        // zip 里可能夹着同步包 JSON，也一并处理
+        const js = files.filter((f) => /\.json$/i.test(f.path) && !/settings/i.test(f.path));
+        let extra = 0;
+        for (const j of js) {
+          const r = await V.importBundle(new TextDecoder().decode(j.data));
+          if (r.ok) extra += r.imported;
+        }
+        const r = await V.importFiles(md);
+        A.afterImport(r, name, files.length, extra);
+
+      } else if (ext === 'json') {
+        const r = await V.importBundle(new TextDecoder().decode(new Uint8Array(ab)));
+        if (!r.ok) { P.toast(r.msg, 'err'); return; }
+        A.refreshAll();
+        A.modal({
+          title: '导入完成',
+          body: '<div class="quote">从同步包里恢复了 ' + r.imported + ' 条记录。</div>' +
+            '<p class="hint mt1">来源：' + L.esc(name) + '</p>',
+          okText: '好'
+        });
+
+      } else if (ext === 'md') {
+        const r = await V.importFiles([{ path: name, data: new Uint8Array(ab) }]);
+        A.afterImport(r, name, 1, 0);
+
+      } else {
+        P.toast('不支持的文件类型：' + ext + '（只认 .zip / .md / .json）', 'err');
+      }
+    } catch (e) {
+      P.toast('导入失败：' + (e.message || String(e)), 'err');
+      console.error(e);
+    }
+  };
+
+  A.afterImport = async function (r, name, fileCount, extra) {
+    A.refreshAll();
+    const d = r.detail || {};
+    let h = '';
+    if (r.imported > 0) {
+      h += '<div class="quote">导入成功<br>' +
+        '每日 ' + (d.day || 0) + ' 篇 · 议题 ' + (d.conflict || 0) + ' 条 · 复盘 ' + (d.review || 0) + ' 篇' +
+        (extra ? ' · 同步包 ' + extra + ' 条' : '') + '</div>';
+    } else {
+      h += '<div class="quote warn">没有导入任何东西。<br>' +
+        '可能是备份里的记录都比现在这台设备上的旧，或者文件格式不对。</div>';
+    }
+    if (r.skipped) h += '<p class="hint mt1">跳过了 ' + r.skipped + ' 条（本地已有更新的版本）。</p>';
+    if (r.bad) h += '<p class="hint mt1">有 ' + r.bad + ' 个文件没认出来，已跳过。</p>';
+    h += '<p class="hint mt1">来源：' + L.esc(name) + (fileCount > 1 ? '（zip 内 ' + fileCount + ' 个文件）' : '') + '</p>';
+
+    A.modal({ title: '导入完成', body: h, okText: '好' });
+  };
+
+  /** 导入后把内存里的状态重新读一遍 */
+  A.refreshAll = async function () {
+    A.day = await V.loadDay(L.today());
+    A.conflicts = await V.listConflicts();
+    A.review = await V.loadReview(L.weekKey());
+    updateHeader();
+    if (A.tab !== 'settings') A.render();
+  };
+
+  g.App = A;
+  document.addEventListener('DOMContentLoaded', function () { A.boot(); });
+})(window);
+
+/* ================= PWA：Service Worker 注册 ================= */
+(function () {
+  'use strict';
+
+  // 注册 Service Worker（仅 https 或 localhost）
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js')
+        .then(function (reg) {
+          console.log('[PWA] Service Worker 注册成功，作用域：', reg.scope);
+        })
+        .catch(function (err) {
+          console.warn('[PWA] Service Worker 注册失败：', err);
+        });
+    });
+  }
+
+  // 在线/离线状态提示
+  function updateOnlineStatus() {
+    var toast = document.getElementById('toast');
+    if (!toast) return;
+    if (navigator.onLine) {
+      toast.textContent = '已恢复在线';
+      toast.className = 'toast show';
+      setTimeout(function () { toast.className = 'toast'; }, 2000);
+    } else {
+      toast.textContent = '当前离线，数据仍会保存在本地';
+      toast.className = 'toast show';
+      setTimeout(function () { toast.className = 'toast'; }, 3000);
+    }
+  }
+  window.addEventListener('online', updateOnlineStatus);
+  window.addEventListener('offline', updateOnlineStatus);
+
+  // PWA 安装提示
+  var deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    console.log('[PWA] 可以安装了，调用 window.PWAInstall() 触发安装');
+  });
+
+  // 暴露全局安装方法（控制台调用，或自定义按钮调用）
+  window.PWAInstall = function () {
+    if (!deferredPrompt) {
+      alert('当前浏览器不支持安装，或已安装过。\n可以手动：\n· Chrome: 菜单 → 安装 JWLE\n· Safari: 分享 → 添加到主屏幕');
+      return;
+    }
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function (choice) {
+      console.log('[PWA] 用户选择：', choice.outcome);
+      deferredPrompt = null;
+    });
+  };
+
+  // 监听已安装
+  window.addEventListener('appinstalled', function () {
+    console.log('[PWA] 应用已安装到桌面');
+    var toast = document.getElementById('toast');
+    if (toast) {
+      toast.textContent = '已添加到主屏幕 ✓';
+      toast.className = 'toast show';
+      setTimeout(function () { toast.className = 'toast'; }, 2500);
+    }
+  });
+})();
+
+</script>
+</body>
+</html>

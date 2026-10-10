@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f6efe9">
+<title>JWLE · 离线</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", sans-serif;
+    background: #f6efe9; color: #2c2724;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px; text-align: center;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 340px; }
+  .logo {
+    font-size: 48px; font-weight: 300; letter-spacing: 6px;
+    color: #c2705a; margin-bottom: 24px;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 12px; }
+  p { font-size: 15px; color: #6b6058; line-height: 1.6; margin-bottom: 8px; }
+  .hint { font-size: 13px; color: #756c65; margin-top: 24px; }
+  .btn {
+    display: inline-block; margin-top: 24px;
+    padding: 12px 32px; font-size: 15px;
+    background: #c2705a; color: #fff;
+    border: none; border-radius: 10px;
+    cursor: pointer; text-decoration: none;
+    font-family: inherit;
+  }
+  .btn:active { opacity: .8; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo">JW<span style="color:#756c65">love</span></div>
+    <h1>当前处于离线状态</h1>
+    <p>JWLE 的核心功能已缓存在本地，你可以继续使用。</p>
+    <p>联网后，提醒同步和云端备份即可恢复正常。</p>
+    <p class="hint">数据始终保存在你的设备本地，不会丢失。</p>
+    <button class="btn" onclick="location.reload()">重试连接</button>
+  </div>
+</body>
+</html>
