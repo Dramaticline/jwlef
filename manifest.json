@@ -1,95 +1,54 @@
 {
-  "name": "JWLE",
-  "short_name": "JWLE",
-  "description": "朝夕 · 一天的事，一天的了 —— 本地优先的情侣日常记录 App",
-  "start_url": "/index.html",
-  "scope": "/",
-  "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#f6efe9",
+  "description": "Love wyx",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "JWLE",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "JWLE",
+  "start_url": "/",
   "theme_color": "#f6efe9",
-  "lang": "zh-CN",
-  "categories": ["lifestyle", "productivity", "health"],
   "icons": [
     {
-      "src": "/icons/icon-72.png",
-      "sizes": "72x72",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-96.png",
-      "sizes": "96x96",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-128.png",
-      "sizes": "128x128",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-144.png",
-      "sizes": "144x144",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-152.png",
-      "sizes": "152x152",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
+      "src": "https://dramaticline.github.io/icons/icon-192.png",
       "type": "image/png",
-      "purpose": "any"
+      "sizes": "32x32",
+      "isSquare": true,
+      "isPng": true,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 32,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
     },
     {
-      "src": "/icons/icon-192-maskable.png",
-      "sizes": "192x192",
+      "src": "https://dramaticline.github.io/icons/icon-512.png",
       "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/icons/icon-384.png",
-      "sizes": "384x384",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
+      "isSquare": true,
+      "isPng": true,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 512,
+      "is512x512": true,
+      "is256x256": false,
+      "is192x192": false
     },
     {
-      "src": "/icons/icon-512-maskable.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "src": "https://dramaticline.github.io/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "isSquare": true,
+      "isPng": true,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 180,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
     }
   ],
-  "shortcuts": [
-    {
-      "name": "今日",
-      "short_name": "今日",
-      "url": "/index.html#work",
-      "icons": [
-        {
-          "src": "/icons/icon-192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "心情",
-      "short_name": "心情",
-      "url": "/index.html#mood",
-      "icons": [
-        {
-          "src": "/icons/icon-192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    }
-  ]
+  "lang": "zh",
+  "iarc_rating_id": "com.WYX.jwle"
 }
